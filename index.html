@@ -59,9 +59,9 @@
             height: 240px;
             font-size: 11px;
             overflow: hidden;
-            border-right: 1px solid rgba(255, 255, 255, 0.3);
+            border-right: 1px solid #FFF;
             padding-right: 5px;
-            color: #aaa;
+            color: #FFF;
         }
 
         .energy-container {
@@ -142,7 +142,7 @@
             cursor: pointer;
             font-size: 30px;
             pointer-events: auto;
-            background: rgba(0, 0, 0, 0.8);
+            background: #000;
             padding: 10px;
             border: 2px solid #fff;
             z-index: 10;
@@ -256,7 +256,7 @@
                 <h3>GENERAL STORE</h3>
                 <p>Your Cash: $<span id="cash-display">0</span></p>
                 <div id="shop-items"></div>
-                <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #888;">(CLICK BOTTOM ARROW TO
+                <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #FFF;">(CLICK BOTTOM ARROW TO
                     LEAVE)</div>
             </div>
 
@@ -277,7 +277,7 @@
                     <div class="tick major"></div>
                 </div>
                 <div
-                    style="position: absolute; top:0; width:100%; text-align:center; font-size:10px; color:#888; mix-blend-mode: difference; font-weight: bold; line-height: 24px;">
+                    style="position: absolute; top:0; width:100%; text-align:center; font-size:10px; color:#FFF; mix-blend-mode: difference; font-weight: bold; line-height: 24px;">
                     ENERGY</div>
             </div>
 
@@ -504,6 +504,7 @@
             }
 
             advanceDay() {
+                this.location = 'farm';
                 this.day++;
                 this.energy = CONFIG.energyMax;
 
