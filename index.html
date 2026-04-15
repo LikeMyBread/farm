@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Farm - Retro Adventure</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: "Courier New", Courier, monospace;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 4px solid #fff;
+            background-color: #000;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .header {
+            text-align: center;
+            padding: 10px;
+            font-size: 24px;
+            border-bottom: 2px solid #fff;
+            pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 40px;
+        }
+
+        .side-log {
+            position: absolute;
+            left: 10px;
+            top: 80px;
+            width: 160px;
+            height: 240px;
+            font-size: 11px;
+            overflow: hidden;
+            border-right: 1px solid rgba(255, 255, 255, 0.3);
+            padding-right: 5px;
+            color: #aaa;
+        }
+
+        .energy-container {
+            position: absolute;
+            bottom: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 230px;
+            height: 24px;
+            border: 2px solid #fff;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #energy-bar {
+            height: 100%;
+            background-color: #fff;
+            width: 100%;
+            transition: width 0.3s;
+        }
+
+        .energy-ticks {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .tick {
+            width: 1px;
+            height: 6px;
+            background-color: #fff;
+            mix-blend-mode: difference;
+        }
+
+        .tick.major {
+            height: 12px;
+            width: 2px;
+        }
+
+        .inventory-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+            background: #000;
+            padding: 10px;
+            border: 2px solid #fff;
+        }
+
+        .inv-slot {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .inv-slot.selected {
+            background-color: #fff;
+            color: #000;
+        }
+
+        .nav-arrow {
+            position: absolute;
+            cursor: pointer;
+            font-size: 30px;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 2px solid #fff;
+            z-index: 10;
+        }
+
+        .nav-arrow:hover {
+            background-color: #fff;
+            color: #000;
+        }
+
+        #nav-right {
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        #nav-left {
+            left: 10px;
+            top: 350px;
+        }
+
+        #nav-down {
+            left: 50%;
+            bottom: 130px;
+            transform: translateX(-50%);
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        #morning-report {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            background: #000;
+            border: 4px solid #fff;
+            padding: 30px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            pointer-events: auto;
+        }
+
+        #morning-report button {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-family: inherit;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .shop-ui {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            border: 2px solid #fff;
+            background: #000;
+            padding: 20px;
+            pointer-events: auto;
+            display: none;
+            z-index: 20;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #fff;
+            padding-bottom: 5px;
+            cursor: pointer;
+        }
+
+        .shop-item:hover {
+            background: #fff;
+            color: #000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <div id="ui-overlay">
+            <div class="header">
+                <span id="location-name">THE FARM</span>
+                <span id="day-display">DAY 1</span>
+            </div>
+            <div class="side-log" id="event-log"></div>
+
+            <div id="nav-left" class="nav-arrow" onclick="game.handleNav('left')">&lt;--</div>
+            <div id="nav-right" class="nav-arrow" onclick="game.handleNav('right')">--&gt;</div>
+            <div id="nav-down" class="nav-arrow" onclick="game.handleNav('down')">v</div>
+
+            <div id="morning-report">
+                <h2 id="report-title">GOOD MORNING</h2>
+                <div id="report-content"></div>
+                <button onclick="game.closeReport()">Start Day</button>
+            </div>
+
+            <div class="shop-ui" id="shop-container">
+                <h3>GENERAL STORE</h3>
+                <p>Your Cash: $<span id="cash-display">0</span></p>
+                <div id="shop-items"></div>
+                <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #888;">(CLICK BOTTOM ARROW TO
+                    LEAVE)</div>
+            </div>
+
+            <div class="energy-container">
+                <div id="energy-bar"></div>
+                <!-- Tick marks for the thermometer effect -->
+                <div class="energy-ticks">
+                    <div class="tick major"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick major"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick major"></div>
+                </div>
+                <div
+                    style="position: absolute; top:0; width:100%; text-align:center; font-size:10px; color:#888; mix-blend-mode: difference; font-weight: bold; line-height: 24px;">
+                    ENERGY</div>
+            </div>
+
+            <div class="inventory-bar" id="inventory"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const logEl = document.getElementById('event-log');
+        const invEl = document.getElementById('inventory');
+        const shopContainer = document.getElementById('shop-container');
+        const energyBarEl = document.getElementById('energy-bar');
+        const reportEl = document.getElementById('morning-report');
+        const reportContentEl = document.getElementById('report-content');
+
+        const CONFIG = {
+            gridCols: 8,
+            gridRows: 4,
+            cellSize: 60,
+            offsetX: 220,
+            offsetY: 220,
+            energyMax: 100,
+            costWater: 5,
+            costPlant: 10,
+            costHarvest: 4
+        };
+
+        const CROPS = {
+            carrot: { name: 'Carrot', seedChar: '.', midChar: 'c', endChar: 'C', value: 10, seedCost: 2, daysToGrow: 2 },
+            wheat: { name: 'Wheat', seedChar: '.', midChar: 'w', endChar: 'W', value: 15, seedCost: 4, daysToGrow: 4 }
+        };
+
+        class Game {
+            constructor() {
+                this.location = 'farm';
+                this.day = 1;
+                this.cash = 10;
+                this.energy = CONFIG.energyMax;
+                this.inventory = [
+                    { id: 'watering_can', name: 'Can', type: 'tool', count: 1 },
+                    { id: 'carrot_seed', name: 'C-Seed', type: 'seed', crop: 'carrot', count: 5 },
+                    { id: 'wheat_seed', name: 'W-Seed', type: 'seed', crop: 'wheat', count: 3 }
+                ];
+                this.selectedItemIndex = 0;
+                this.grid = [];
+                this.initGrid();
+                this.messages = ["Welcome to ASCII Farm."];
+                this.isRaining = false;
+
+                this.mouseX = 0;
+                this.mouseY = 0;
+
+                this.farmHouseRect = { x: 375, y: 65, w: 130, h: 140 };
+                this.townStoreRect = { x: 300, y: 195, w: 200, h: 160 };
+                this.bedRect = { x: 290, y: 270, w: 220, h: 150 };
+
+                canvas.addEventListener('mousedown', (e) => this.handleClick(e));
+                canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+
+                this.updateUI();
+                this.gameLoop();
+            }
+
+            initGrid() {
+                for (let r = 0; r < CONFIG.gridRows; r++) {
+                    this.grid[r] = [];
+                    for (let c = 0; c < CONFIG.gridCols; c++) {
+                        this.grid[r][c] = {
+                            watered: false,
+                            crop: null,
+                            growthDays: 0
+                        };
+                    }
+                }
+            }
+
+            log(msg) {
+                this.messages.push(msg);
+                if (this.messages.length > 15) this.messages.shift();
+                logEl.innerHTML = this.messages.slice().reverse().map(m => `<div>> ${m}</div>`).join('');
+            }
+
+            consumeEnergy(amount) {
+                if (this.energy >= amount) {
+                    this.energy -= amount;
+                    this.updateUI();
+                    return true;
+                }
+                this.log("Too tired! Sleep first.");
+                return false;
+            }
+
+            updateUI() {
+                document.getElementById('location-name').innerText = this.location.toUpperCase();
+                document.getElementById('day-display').innerText = `DAY ${this.day}`;
+                const cashSpan = document.getElementById('cash-display');
+                if (cashSpan) cashSpan.innerText = this.cash;
+
+                energyBarEl.style.width = `${(this.energy / CONFIG.energyMax) * 100}%`;
+
+                const navL = document.getElementById('nav-left');
+                const navR = document.getElementById('nav-right');
+                const navD = document.getElementById('nav-down');
+
+                navL.style.display = (this.location === 'town') ? 'block' : 'none';
+                navR.style.display = (this.location === 'farm') ? 'block' : 'none';
+                navD.style.display = (this.location === 'house' || this.location === 'store') ? 'block' : 'none';
+
+                shopContainer.style.display = this.location === 'store' ? 'block' : 'none';
+                if (this.location === 'store') this.renderShop();
+
+                invEl.innerHTML = this.inventory.map((item, index) => `
+                <div class="inv-slot ${this.selectedItemIndex === index ? 'selected' : ''}" onclick="game.selectItem(${index})">
+                    <div>${item.name}</div>
+                    <div>${item.type === 'tool' ? '' : 'x' + item.count}</div>
+                </div>
+            `).join('');
+            }
+
+            handleNav(dir) {
+                if (this.location === 'farm' && dir === 'right') this.changeLocation('town');
+                else if (this.location === 'town' && dir === 'left') this.changeLocation('farm');
+                else if (this.location === 'house' && dir === 'down') this.changeLocation('farm');
+                else if (this.location === 'store' && dir === 'down') this.changeLocation('town');
+            }
+
+            selectItem(index) {
+                this.selectedItemIndex = index;
+                this.updateUI();
+            }
+
+            changeLocation(loc) {
+                this.location = loc;
+                this.updateUI();
+            }
+
+            handleMouseMove(e) {
+                const rect = canvas.getBoundingClientRect();
+                this.mouseX = e.clientX - rect.left;
+                this.mouseY = e.clientY - rect.top;
+            }
+
+            isHovering(rect) {
+                return this.mouseX >= rect.x && this.mouseX <= rect.x + rect.w &&
+                    this.mouseY >= rect.y && this.mouseY <= rect.y + rect.h;
+            }
+
+            drawHoverOutline(rect) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+                ctx.setLineDash([]);
+            }
+
+            handleClick(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (this.location === 'farm') {
+                    if (this.isHovering(this.farmHouseRect)) {
+                        this.changeLocation('house');
+                        return;
+                    }
+
+                    const col = Math.floor((x - CONFIG.offsetX) / CONFIG.cellSize);
+                    const row = Math.floor((y - CONFIG.offsetY) / CONFIG.cellSize);
+
+                    if (col >= 0 && col < CONFIG.gridCols && row >= 0 && row < CONFIG.gridRows) {
+                        const cell = this.grid[row][col];
+                        const activeItem = this.inventory[this.selectedItemIndex];
+
+                        if (cell.crop) {
+                            const cropData = CROPS[cell.crop];
+                            if (cell.growthDays >= cropData.daysToGrow) {
+                                if (this.consumeEnergy(CONFIG.costHarvest)) {
+                                    this.addToInventory(cell.crop);
+                                    this.log(`Harvested ${cell.crop}!`);
+                                    cell.crop = null;
+                                    cell.growthDays = 0;
+                                    this.updateUI();
+                                }
+                                return;
+                            }
+                        }
+
+                        if (!activeItem) return;
+
+                        if (activeItem.id === 'watering_can') {
+                            if (!cell.watered) {
+                                if (this.consumeEnergy(CONFIG.costWater)) {
+                                    cell.watered = true;
+                                    this.log(`Watered square [${col},${row}]`);
+                                }
+                            }
+                        } else if (activeItem.type === 'seed' && activeItem.count > 0) {
+                            if (!cell.crop) {
+                                if (this.consumeEnergy(CONFIG.costPlant)) {
+                                    cell.crop = activeItem.crop;
+                                    cell.growthDays = 0;
+                                    activeItem.count--;
+                                    if (activeItem.count <= 0) {
+                                        this.inventory.splice(this.selectedItemIndex, 1);
+                                        this.selectedItemIndex = 0;
+                                    }
+                                    this.log(`Planted ${activeItem.crop}`);
+                                    this.updateUI();
+                                }
+                            }
+                        }
+                    }
+                } else if (this.location === 'town') {
+                    if (this.isHovering(this.townStoreRect)) {
+                        this.changeLocation('store');
+                    }
+                } else if (this.location === 'house') {
+                    if (this.isHovering(this.bedRect)) {
+                        this.advanceDay();
+                    }
+                }
+            }
+
+            advanceDay() {
+                this.day++;
+                this.energy = CONFIG.energyMax;
+
+                let events = [];
+
+                this.isRaining = Math.random() < 0.2;
+                if (this.isRaining) events.push("It is raining today! No need to water.");
+
+                if (Math.random() < 0.05) {
+                    const crops = [];
+                    for (let r = 0; r < CONFIG.gridRows; r++) {
+                        for (let c = 0; c < CONFIG.gridCols; c++) {
+                            if (this.grid[r][c].crop) crops.push(this.grid[r][c]);
+                        }
+                    }
+                    if (crops.length > 0) {
+                        const victim = crops[Math.floor(Math.random() * crops.length)];
+                        victim.crop = null;
+                        victim.growthDays = 0;
+                        events.push("A sudden blight has withered one of your crops...");
+                    }
+                }
+
+                for (let r = 0; r < CONFIG.gridRows; r++) {
+                    for (let c = 0; c < CONFIG.gridCols; c++) {
+                        const cell = this.grid[r][c];
+                        if (this.isRaining) cell.watered = true;
+                        if (cell.crop && cell.watered) {
+                            cell.growthDays++;
+                        }
+                        cell.watered = false;
+                    }
+                }
+
+                this.showReport(events);
+                this.updateUI();
+            }
+
+            showReport(events) {
+                reportEl.style.display = 'block';
+                let content = `<p>Day ${this.day} has begun.</p>`;
+                if (events.length > 0) {
+                    content += "<ul>" + events.map(e => `<li>${e}</li>`).join('') + "</ul>";
+                } else {
+                    content += "<p>It's a beautiful, clear day.</p>";
+                }
+                reportContentEl.innerHTML = content;
+            }
+
+            closeReport() {
+                reportEl.style.display = 'none';
+            }
+
+            addToInventory(cropKey) {
+                const id = cropKey + '_produce';
+                const existing = this.inventory.find(i => i.id === id);
+                if (existing) {
+                    existing.count++;
+                } else {
+                    this.inventory.push({ id, name: cropKey.toUpperCase(), type: 'harvested', crop: cropKey, count: 1 });
+                }
+            }
+
+            renderShop() {
+                const itemsHtml = Object.keys(CROPS).map(key => `
+                <div class="shop-item" onclick="game.buySeed('${key}')">
+                    <span>Buy ${CROPS[key].name} Seed (${CROPS[key].daysToGrow}d)</span>
+                    <span>$${CROPS[key].seedCost}</span>
+                </div>
+            `).join('') + this.inventory.filter(i => i.type === 'harvested').map(item => `
+                <div class="shop-item" onclick="game.sellCrop('${item.id}')">
+                    <span>Sell ${item.name} (x${item.count})</span>
+                    <span>$${CROPS[item.crop].value * item.count}</span>
+                </div>
+            `).join('');
+                document.getElementById('shop-items').innerHTML = itemsHtml || "No business today.";
+            }
+
+            buySeed(key) {
+                const cost = CROPS[key].seedCost;
+                if (this.cash >= cost) {
+                    this.cash -= cost;
+                    const id = key + '_seed';
+                    const existing = this.inventory.find(i => i.id === id);
+                    if (existing) existing.count++;
+                    else this.inventory.push({ id, name: key[0].toUpperCase() + '-Seed', type: 'seed', crop: key, count: 1 });
+                    this.log(`Bought ${key} seed`);
+                    this.updateUI();
+                } else {
+                    this.log("Not enough cash!");
+                }
+            }
+
+            sellCrop(itemId) {
+                const idx = this.inventory.findIndex(i => i.id === itemId);
+                const item = this.inventory[idx];
+                const profit = CROPS[item.crop].value * item.count;
+                this.cash += profit;
+                this.inventory.splice(idx, 1);
+                this.log(`Sold produce for $${profit}`);
+                this.updateUI();
+            }
+
+            draw() {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                if (this.location === 'farm') {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '16px Courier New';
+                    ctx.textAlign = 'center';
+                    const houseAscii = [
+                        "     /\\      ",
+                        "    /  \\     ",
+                        "   /____\\    ",
+                        "  |  __  |   ",
+                        "  | |  | |   ",
+                        "  | |__| |   ",
+                        "  |______|   "
+                    ];
+                    houseAscii.forEach((line, i) => {
+                        ctx.fillText(line, 440, 70 + i * 18);
+                    });
+
+                    if (this.isHovering(this.farmHouseRect)) {
+                        this.drawHoverOutline(this.farmHouseRect);
+                    }
+
+                    if (this.isRaining) {
+                        ctx.fillStyle = '#fff';
+                        for (let i = 0; i < 30; i++) {
+                            ctx.fillText("|", Math.random() * 800, Math.random() * 600);
+                        }
+                    }
+
+                    for (let r = 0; r < CONFIG.gridRows; r++) {
+                        for (let c = 0; c < CONFIG.gridCols; c++) {
+                            const cell = this.grid[r][c];
+                            const x = CONFIG.offsetX + c * CONFIG.cellSize;
+                            const y = CONFIG.offsetY + r * CONFIG.cellSize;
+
+                            const isWet = cell.watered || this.isRaining;
+
+                            ctx.fillStyle = isWet ? '#000' : '#fff';
+                            ctx.fillRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
+
+                            ctx.strokeStyle = isWet ? '#fff' : '#000';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
+
+                            if (cell.crop) {
+                                ctx.font = '30px Courier New';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillStyle = isWet ? '#fff' : '#000';
+
+                                const data = CROPS[cell.crop];
+                                let char = data.seedChar;
+                                const progress = cell.growthDays / data.daysToGrow;
+                                if (progress > 0.5) char = data.midChar;
+                                if (progress >= 1) char = data.endChar;
+
+                                ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);
+                            }
+                        }
+                    }
+                } else if (this.location === 'town') {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '24px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("MAIN STREET", 400, 100);
+
+                    ctx.font = '18px Courier New';
+                    const storeAscii = [
+                        "    _________    ",
+                        "   /         \\   ",
+                        "  /  STORE    \\  ",
+                        " |   _    _   | ",
+                        " |  [ ]  [ ]  | ",
+                        " |      _     | ",
+                        " |_____| |____| "
+                    ];
+                    storeAscii.forEach((line, i) => {
+                        ctx.fillText(line, 400, 200 + i * 20);
+                    });
+
+                    if (this.isHovering(this.townStoreRect)) {
+                        this.drawHoverOutline(this.townStoreRect);
+                    }
+
+                    ctx.fillStyle = '#888';
+                    ctx.font = '12px Courier New';
+                    ctx.fillText("|   LIBRARY   |", 150, 250);
+                    ctx.fillText("|_____________|", 150, 265);
+                    ctx.fillText("|    INN      |", 650, 250);
+                    ctx.fillText("|_____________|", 650, 265);
+
+                } else if (this.location === 'store') {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '20px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("GENERAL STORE INTERIOR", 400, 80);
+
+                    ctx.fillText("________________________", 400, 300);
+                    ctx.fillText("|  [ SEEDS ]  [ TOOLS ] |", 400, 280);
+                    ctx.fillText("|                       |", 400, 320);
+                    ctx.fillText("|_______ ( o ) _________|", 400, 340);
+
+                } else if (this.location === 'house') {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '20px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("INSIDE YOUR HOME", 400, 200);
+
+                    if (this.isHovering(this.bedRect)) {
+                        this.drawHoverOutline(this.bedRect);
+                    }
+
+                    const bed = [
+                        "    _________________   ",
+                        "   |#################|  ",
+                        "   |#               #|  ",
+                        "   |#      BED      #|  ",
+                        "   |_________________|  ",
+                        "   | |             | |  "
+                    ];
+                    bed.forEach((line, i) => {
+                        ctx.fillText(line, 400, 300 + i * 20);
+                    });
+                }
+            }
+
+            gameLoop() {
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        const game = new Game();
+    </script>
+
+</body>
+
+</html>
