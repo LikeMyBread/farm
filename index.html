@@ -5,250 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASCII Farm - Retro Adventure</title>
-    <style>
-        body {
-            background-color: #000;
-            color: #fff;
-            font-family: "Courier New", Courier, monospace;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-        }
-
-        #game-container {
-            position: relative;
-            width: 800px;
-            height: 600px;
-            border: 4px solid #fff;
-            background-color: #000;
-        }
-
-        #ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .header {
-            text-align: center;
-            padding: 10px;
-            font-size: 24px;
-            border-bottom: 2px solid #fff;
-            pointer-events: auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 40px;
-        }
-
-        .side-log {
-            position: absolute;
-            left: 10px;
-            top: 80px;
-            width: 160px;
-            height: 240px;
-            font-size: 11px;
-            overflow: hidden;
-            border-right: 1px solid #FFF;
-            padding-right: 5px;
-            color: #FFF;
-        }
-
-        .energy-container {
-            position: absolute;
-            bottom: 95px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 230px;
-            height: 24px;
-            border: 2px solid #fff;
-            background: #000;
-            overflow: hidden;
-        }
-
-        #energy-bar {
-            height: 100%;
-            background-color: #fff;
-            width: 100%;
-            transition: width 0.3s;
-        }
-
-        .energy-ticks {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-
-        .tick {
-            width: 1px;
-            height: 6px;
-            background-color: #fff;
-            mix-blend-mode: difference;
-        }
-
-        .tick.major {
-            height: 12px;
-            width: 2px;
-        }
-
-        .inventory-bar {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            pointer-events: auto;
-            background: #000;
-            padding: 10px;
-            border: 2px solid #fff;
-        }
-
-        .inv-slot {
-            width: 50px;
-            height: 50px;
-            border: 2px solid #fff;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            font-size: 10px;
-            text-align: center;
-        }
-
-        .inv-slot.selected {
-            background-color: #fff;
-            color: #000;
-        }
-
-        .nav-arrow {
-            position: absolute;
-            cursor: pointer;
-            font-size: 30px;
-            pointer-events: auto;
-            background: #000;
-            padding: 10px;
-            border: 2px solid #fff;
-            z-index: 10;
-        }
-
-        .nav-arrow:hover {
-            background-color: #fff;
-            color: #000;
-        }
-
-        #nav-right {
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        #nav-left {
-            left: 10px;
-            top: 350px;
-        }
-
-        #nav-down {
-            left: 50%;
-            bottom: 130px;
-            transform: translateX(-50%);
-        }
-
-        canvas {
-            display: block;
-            cursor: crosshair;
-        }
-
-        #morning-report {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 400px;
-            background: #000;
-            border: 4px solid #fff;
-            padding: 30px;
-            text-align: center;
-            z-index: 100;
-            display: none;
-            pointer-events: auto;
-        }
-
-        #morning-report button {
-            background: #fff;
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            font-family: inherit;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-
-        .shop-ui {
-            position: absolute;
-            top: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 400px;
-            border: 2px solid #fff;
-            background: #000;
-            padding: 20px;
-            pointer-events: auto;
-            display: none;
-            z-index: 20;
-        }
-
-        .shop-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            border-bottom: 1px dashed #fff;
-            padding-bottom: 5px;
-            cursor: pointer;
-        }
-
-        .shop-item:hover {
-            background: #fff;
-            color: #000;
-        }
-
-        .ascii-btn {
-            cursor: pointer;
-            color: #fff;
-            text-decoration: none;
-            padding: 0 4px;
-        }
-
-        .ascii-btn:hover {
-            background: #fff;
-            color: #000;
-        }
-
-        .shop-item:hover .ascii-btn {
-            color: #000;
-        }
-
-        .shop-item:hover .ascii-btn:hover {
-            background: #000;
-            color: #fff;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
@@ -263,9 +20,10 @@
             </div>
             <div class="side-log" id="event-log"></div>
 
-            <div id="nav-left" class="nav-arrow" onclick="game.handleNav('left')">&lt;--</div>
-            <div id="nav-right" class="nav-arrow" onclick="game.handleNav('right')">--&gt;</div>
-            <div id="nav-down" class="nav-arrow" onclick="game.handleNav('down')">v</div>
+            <div id="nav-up" class="nav-arrow" onclick="game.handleNav('up')">↑</div>
+            <div id="nav-down" class="nav-arrow" onclick="game.handleNav('down')">↓</div>
+            <div id="nav-left" class="nav-arrow" onclick="game.handleNav('left')">←</div>
+            <div id="nav-right" class="nav-arrow" onclick="game.handleNav('right')">→</div>
 
             <div id="morning-report">
                 <h2 id="report-title">GOOD MORNING</h2>
@@ -302,11 +60,26 @@
                     ENERGY</div>
             </div>
 
-            <div class="inventory-bar" id="inventory"></div>
+            <div class="inventory-wrapper">
+                <div class="inventory-scroll">
+                    <div class="scroll-arrow" onclick="game.scrollInventory(-1)">↑</div>
+                    <div class="scroll-arrow" onclick="game.scrollInventory(1)">↓</div>
+                </div>
+                <div class="inventory-viewport">
+                    <div class="inventory-bar" id="inventory"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        function resizeGame() {
+            const scale = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+            document.getElementById('game-container').style.transform = `scale(${scale})`;
+        }
+        window.addEventListener('resize', resizeGame);
+        resizeGame();
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const logEl = document.getElementById('event-log');
@@ -317,9 +90,9 @@
         const reportContentEl = document.getElementById('report-content');
 
         const CONFIG = {
-            gridCols: 8,
-            gridRows: 4,
-            cellSize: 60,
+            gridCols: 12,
+            gridRows: 6,
+            cellSize: 40,
             offsetX: 220,
             offsetY: 220,
             energyMax: 100,
@@ -345,10 +118,11 @@
                     { id: 'watering_can', name: 'Can', type: 'tool', count: 1 },
                     { id: 'pickaxe', name: 'Pick', type: 'tool', count: 1 },
                     { id: 'axe', name: 'Axe', type: 'tool', count: 1 },
-                    { id: 'carrot_seed', name: 'C-Seed', type: 'seed', crop: 'carrot', count: 5 },
-                    { id: 'wheat_seed', name: 'W-Seed', type: 'seed', crop: 'wheat', count: 3 }
+                    { id: 'carrot_seed', name: 'Carrot', type: 'seed', crop: 'carrot', count: 5 },
+                    { id: 'wheat_seed', name: 'Wheat', type: 'seed', crop: 'wheat', count: 3 }
                 ];
                 this.selectedItemIndex = 0;
+                this.inventoryScrollRow = 0;
                 this.grid = [];
                 this.initGrid();
                 this.messages = ["Welcome to ASCII Farm."];
@@ -427,10 +201,12 @@
                 const navL = document.getElementById('nav-left');
                 const navR = document.getElementById('nav-right');
                 const navD = document.getElementById('nav-down');
+                const navU = document.getElementById('nav-up');
 
-                navL.style.display = (this.location === 'town') ? 'block' : 'none';
-                navR.style.display = (this.location === 'farm') ? 'block' : 'none';
-                navD.style.display = (this.location === 'house' || this.location === 'store') ? 'block' : 'none';
+                navL.style.display = (this.location === 'town') ? 'flex' : 'none';
+                navR.style.display = (this.location === 'farm') ? 'flex' : 'none';
+                navD.style.display = (this.location === 'house' || this.location === 'store') ? 'flex' : 'none';
+                navU.style.display = 'none';
 
                 shopContainer.style.display = this.location === 'store' ? 'block' : 'none';
                 if (this.location === 'store') this.renderShop();
@@ -438,9 +214,20 @@
                 invEl.innerHTML = this.inventory.map((item, index) => `
                 <div class="inv-slot ${this.selectedItemIndex === index ? 'selected' : ''}" onclick="game.selectItem(${index})">
                     <div>${item.name}</div>
+                    ${item.type === 'seed' ? '<div>Seed</div>' : ''}
                     <div>${item.type === 'tool' ? '' : 'x' + item.count}</div>
                 </div>
             `).join('');
+                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 60}px)`;
+            }
+
+            scrollInventory(dir) {
+                const itemsPerRow = 6;
+                const totalRows = Math.ceil(this.inventory.length / itemsPerRow);
+                this.inventoryScrollRow += dir;
+                if (this.inventoryScrollRow < 0) this.inventoryScrollRow = 0;
+                if (this.inventoryScrollRow >= totalRows) this.inventoryScrollRow = Math.max(0, totalRows - 1);
+                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 60}px)`;
             }
 
             handleNav(dir) {
@@ -484,8 +271,10 @@
 
             handleMouseMove(e) {
                 const rect = canvas.getBoundingClientRect();
-                this.mouseX = e.clientX - rect.left;
-                this.mouseY = e.clientY - rect.top;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                this.mouseX = (e.clientX - rect.left) * scaleX;
+                this.mouseY = (e.clientY - rect.top) * scaleY;
             }
 
             isHovering(rect) {
@@ -503,8 +292,10 @@
 
             handleClick(e) {
                 const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
 
                 if (this.location === 'farm') {
                     if (this.isHovering(this.farmHouseRect)) {
@@ -699,7 +490,7 @@
                     const id = key + '_seed';
                     const existing = this.inventory.find(i => i.id === id);
                     if (existing) existing.count++;
-                    else this.inventory.push({ id, name: key[0].toUpperCase() + '-Seed', type: 'seed', crop: key, count: 1 });
+                    else this.inventory.push({ id, name: CROPS[key].name, type: 'seed', crop: key, count: 1 });
                     this.log(`Bought ${key} seed`);
                     this.updateUI();
                 } else {
@@ -779,7 +570,7 @@
                             ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
 
                             if (cell.obstacle) {
-                                ctx.font = '30px Courier New';
+                                ctx.font = '20px Courier New';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
                                 ctx.fillStyle = isWet ? '#fff' : '#000';
@@ -792,7 +583,7 @@
 
                                 ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);
                             } else if (cell.crop) {
-                                ctx.font = '30px Courier New';
+                                ctx.font = '20px Courier New';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
                                 ctx.fillStyle = isWet ? '#fff' : '#000';
