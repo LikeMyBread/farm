@@ -227,6 +227,27 @@
             background: #fff;
             color: #000;
         }
+
+        .ascii-btn {
+            cursor: pointer;
+            color: #fff;
+            text-decoration: none;
+            padding: 0 4px;
+        }
+
+        .ascii-btn:hover {
+            background: #fff;
+            color: #000;
+        }
+
+        .shop-item:hover .ascii-btn {
+            color: #000;
+        }
+
+        .shop-item:hover .ascii-btn:hover {
+            background: #000;
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -308,8 +329,10 @@
         };
 
         const CROPS = {
-            carrot: { name: 'Carrot', seedChar: '.', midChar: 'c', endChar: 'C', value: 10, seedCost: 2, daysToGrow: 2 },
-            wheat: { name: 'Wheat', seedChar: '.', midChar: 'w', endChar: 'W', value: 15, seedCost: 4, daysToGrow: 4 }
+            carrot: { name: 'Carrot', seedChar: '.', midChar: 'c', endChar: 'C', value: 10, seedCost: 2, daysToGrow: 2, restoreEnergy: 15 },
+            wheat: { name: 'Wheat', seedChar: '.', midChar: 'w', endChar: 'W', value: 15, seedCost: 4, daysToGrow: 4, restoreEnergy: 20 },
+            wood: { name: 'Wood', value: 2 },
+            stone: { name: 'Stone', value: 3 }
         };
 
         class Game {
@@ -320,6 +343,8 @@
                 this.energy = CONFIG.energyMax;
                 this.inventory = [
                     { id: 'watering_can', name: 'Can', type: 'tool', count: 1 },
+                    { id: 'pickaxe', name: 'Pick', type: 'tool', count: 1 },
+                    { id: 'axe', name: 'Axe', type: 'tool', count: 1 },
                     { id: 'carrot_seed', name: 'C-Seed', type: 'seed', crop: 'carrot', count: 5 },
                     { id: 'wheat_seed', name: 'W-Seed', type: 'seed', crop: 'wheat', count: 3 }
                 ];
@@ -347,11 +372,30 @@
                 for (let r = 0; r < CONFIG.gridRows; r++) {
                     this.grid[r] = [];
                     for (let c = 0; c < CONFIG.gridCols; c++) {
-                        this.grid[r][c] = {
+                        const cell = {
                             watered: false,
                             crop: null,
-                            growthDays: 0
+                            growthDays: 0,
+                            obstacle: null,
+                            stickChar: ''
                         };
+
+                        if (Math.random() < 0.45) {
+                            const rand = Math.random();
+                            if (rand < 0.25) {
+                                cell.obstacle = 'rock_large';
+                            } else if (rand < 0.5) {
+                                cell.obstacle = 'rock_small';
+                            } else if (rand < 0.75) {
+                                cell.obstacle = 'log';
+                            } else {
+                                cell.obstacle = 'stick';
+                                const stickChars = ['/', '\\', '|', '-', '_'];
+                                cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
+                            }
+                        }
+
+                        this.grid[r][c] = cell;
                     }
                 }
             }
@@ -407,6 +451,28 @@
             }
 
             selectItem(index) {
+                const item = this.inventory[index];
+                if (item && item.type === 'harvested') {
+                    const cropDef = CROPS[item.crop];
+                    if (cropDef && cropDef.restoreEnergy) {
+                        if (this.energy < CONFIG.energyMax) {
+                            this.energy = Math.min(CONFIG.energyMax, this.energy + cropDef.restoreEnergy);
+                            item.count--;
+                            if (item.count <= 0) {
+                                this.inventory.splice(index, 1);
+                                if (this.selectedItemIndex >= this.inventory.length) {
+                                    this.selectedItemIndex = Math.max(0, this.inventory.length - 1);
+                                }
+                            }
+                            this.log(`Ate a ${cropDef.name}! (+${cropDef.restoreEnergy} energy)`);
+                            this.updateUI();
+                            return;
+                        } else {
+                            this.log("Energy is already full!");
+                        }
+                    }
+                }
+
                 this.selectedItemIndex = index;
                 this.updateUI();
             }
@@ -452,6 +518,39 @@
                     if (col >= 0 && col < CONFIG.gridCols && row >= 0 && row < CONFIG.gridRows) {
                         const cell = this.grid[row][col];
                         const activeItem = this.inventory[this.selectedItemIndex];
+
+                        if (cell.obstacle) {
+                            if (!activeItem) return;
+                            if (activeItem.id === 'pickaxe' && (cell.obstacle === 'rock_large' || cell.obstacle === 'rock_small')) {
+                                if (this.consumeEnergy(5)) {
+                                    this.addToInventory('stone');
+                                    this.log('Mined 1 Stone!');
+                                    if (cell.obstacle === 'rock_large') {
+                                        cell.obstacle = 'rock_small';
+                                    } else {
+                                        cell.obstacle = null;
+                                    }
+                                    this.updateUI();
+                                }
+                                return;
+                            }
+                            if (activeItem.id === 'axe' && (cell.obstacle === 'log' || cell.obstacle === 'stick')) {
+                                if (this.consumeEnergy(5)) {
+                                    this.addToInventory('wood');
+                                    this.log('Chopped 1 Wood!');
+                                    if (cell.obstacle === 'log') {
+                                        cell.obstacle = 'stick';
+                                        const stickChars = ['/', '\\', '|', '-', '_'];
+                                        cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
+                                    } else {
+                                        cell.obstacle = null;
+                                    }
+                                    this.updateUI();
+                                }
+                                return;
+                            }
+                            return;
+                        }
 
                         if (cell.crop) {
                             const cropData = CROPS[cell.crop];
@@ -569,18 +668,28 @@
             }
 
             renderShop() {
-                const itemsHtml = Object.keys(CROPS).map(key => `
-                <div class="shop-item" onclick="game.buySeed('${key}')">
-                    <span>Buy ${CROPS[key].name} Seed (${CROPS[key].daysToGrow}d)</span>
-                    <span>$${CROPS[key].seedCost}</span>
-                </div>
-            `).join('') + this.inventory.filter(i => i.type === 'harvested').map(item => `
-                <div class="shop-item" onclick="game.sellCrop('${item.id}')">
-                    <span>Sell ${item.name} (x${item.count})</span>
-                    <span>$${CROPS[item.crop].value * item.count}</span>
+                const seedItemsHtml = Object.keys(CROPS).filter(k => CROPS[k].seedCost).map(key => `
+                <div class="shop-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;">
+                    <span>${CROPS[key].name} Seed (${CROPS[key].daysToGrow}d)</span>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <span>$${CROPS[key].seedCost}</span>
+                        <span class="ascii-btn" onclick="game.buySeed('${key}')">[BUY]</span>
+                    </div>
                 </div>
             `).join('');
-                document.getElementById('shop-items').innerHTML = itemsHtml || "No business today.";
+
+                const inventoryItemsHtml = this.inventory.filter(i => i.type === 'harvested').map(item => `
+                <div class="shop-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;">
+                    <span>${item.name} (x${item.count})</span>
+                    <div style="display: flex; gap: 5px; align-items: center; font-size: 14px;">
+                        <span class="ascii-btn" onclick="event.stopPropagation(); game.sellCrop('${item.id}', 1)">[SELL 1 ($${CROPS[item.crop].value})]</span>
+                        <span class="ascii-btn" onclick="event.stopPropagation(); game.sellCrop('${item.id}', 'half')">[SELL 1/2]</span>
+                        <span class="ascii-btn" onclick="event.stopPropagation(); game.sellCrop('${item.id}', 'all')">[SELL ALL]</span>
+                    </div>
+                </div>
+            `).join('');
+
+                document.getElementById('shop-items').innerHTML = seedItemsHtml + inventoryItemsHtml || "No business today.";
             }
 
             buySeed(key) {
@@ -598,13 +707,27 @@
                 }
             }
 
-            sellCrop(itemId) {
+            sellCrop(itemId, amount) {
                 const idx = this.inventory.findIndex(i => i.id === itemId);
+                if (idx === -1) return;
                 const item = this.inventory[idx];
-                const profit = CROPS[item.crop].value * item.count;
+
+                let qty = 1;
+                if (amount === 'half') qty = Math.floor(item.count / 2) || 1;
+                if (amount === 'all') qty = item.count;
+
+                const profit = CROPS[item.crop].value * qty;
                 this.cash += profit;
-                this.inventory.splice(idx, 1);
-                this.log(`Sold produce for $${profit}`);
+
+                item.count -= qty;
+                if (item.count <= 0) {
+                    this.inventory.splice(idx, 1);
+                    if (this.selectedItemIndex >= this.inventory.length) {
+                        this.selectedItemIndex = Math.max(0, this.inventory.length - 1);
+                    }
+                }
+
+                this.log(`Sold ${qty}x ${item.name} for $${profit}`);
                 this.updateUI();
             }
 
@@ -655,7 +778,20 @@
                             ctx.lineWidth = 1;
                             ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
 
-                            if (cell.crop) {
+                            if (cell.obstacle) {
+                                ctx.font = '30px Courier New';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillStyle = isWet ? '#fff' : '#000';
+
+                                let char = '';
+                                if (cell.obstacle === 'rock_large') char = 'O';
+                                else if (cell.obstacle === 'rock_small') char = 'o';
+                                else if (cell.obstacle === 'log') char = 'I';
+                                else if (cell.obstacle === 'stick') char = cell.stickChar;
+
+                                ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);
+                            } else if (cell.crop) {
                                 ctx.font = '30px Courier New';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
