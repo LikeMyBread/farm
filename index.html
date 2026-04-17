@@ -340,7 +340,9 @@
                                 }
                                 return;
                             }
-                            return;
+                            if (activeItem.id !== 'watering_can') {
+                                return;
+                            }
                         }
 
                         if (cell.crop) {
@@ -547,13 +549,6 @@
                         this.drawHoverOutline(this.farmHouseRect);
                     }
 
-                    if (this.isRaining) {
-                        ctx.fillStyle = '#fff';
-                        for (let i = 0; i < 30; i++) {
-                            ctx.fillText("|", Math.random() * 800, Math.random() * 600);
-                        }
-                    }
-
                     for (let r = 0; r < CONFIG.gridRows; r++) {
                         for (let c = 0; c < CONFIG.gridCols; c++) {
                             const cell = this.grid[r][c];
@@ -656,6 +651,13 @@
                     bed.forEach((line, i) => {
                         ctx.fillText(line, 400, 300 + i * 20);
                     });
+                }
+
+                if (this.isRaining && (this.location === 'farm' || this.location === 'town')) {
+                    ctx.fillStyle = '#fff';
+                    for (let i = 0; i < 30; i++) {
+                        ctx.fillText("|", Math.random() * 800, Math.random() * 600);
+                    }
                 }
             }
 
