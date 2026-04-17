@@ -61,11 +61,11 @@ body {
 
 .energy-container {
     position: absolute;
-    bottom: 95px;
+    bottom: 100px;
     left: 50%;
     transform: translateX(-50%);
-    width: 230px;
-    height: 24px;
+    width: 300px;
+    height: 32px;
     border: 2px solid #fff;
     background: #000;
     overflow: hidden;
@@ -91,19 +91,19 @@ body {
 
 .tick {
     width: 1px;
-    height: 6px;
+    height: 8px;
     background-color: #fff;
     mix-blend-mode: difference;
 }
 
 .tick.major {
-    height: 12px;
+    height: 16px;
     width: 2px;
 }
 
 .inventory-wrapper {
     position: absolute;
-    bottom: 25px;
+    bottom: 5px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -123,8 +123,8 @@ body {
 
 .scroll-arrow {
     cursor: pointer;
-    font-size: 16px;
-    padding: 2px 8px;
+    font-size: 20px;
+    padding: 4px 10px;
     border: 1px solid #fff;
     text-align: center;
     user-select: none;
@@ -138,8 +138,8 @@ body {
 .inventory-viewport {
     display: flex;
     overflow: hidden;
-    width: 350px; /* Space for 6 items + gaps */
-    height: 54px; /* Space for exactly one item row */
+    width: 434px; /* Space for 6 items + gaps */
+    height: 68px; /* Space for exactly one item row */
 }
 
 .inventory-bar {
@@ -147,19 +147,19 @@ body {
     gap: 10px;
     flex-wrap: wrap;
     transition: transform 0.2s ease-in-out;
-    width: 350px;
+    width: 434px;
 }
 
 .inv-slot {
-    width: 50px;
-    height: 50px;
+    width: 64px;
+    height: 64px;
     border: 2px solid #fff;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    font-size: 10px;
+    font-size: 12px;
     text-align: center;
     box-sizing: border-box;
 }

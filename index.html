@@ -56,7 +56,7 @@
                     <div class="tick major"></div>
                 </div>
                 <div
-                    style="position: absolute; top:0; width:100%; text-align:center; font-size:10px; color:#FFF; mix-blend-mode: difference; font-weight: bold; line-height: 24px;">
+                    style="position: absolute; top:0; width:100%; text-align:center; font-size:14px; color:#FFF; mix-blend-mode: difference; font-weight: bold; line-height: 32px;">
                     ENERGY</div>
             </div>
 
@@ -218,7 +218,7 @@
                     <div>${item.type === 'tool' ? '' : 'x' + item.count}</div>
                 </div>
             `).join('');
-                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 60}px)`;
+                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 74}px)`;
             }
 
             scrollInventory(dir) {
@@ -227,7 +227,7 @@
                 this.inventoryScrollRow += dir;
                 if (this.inventoryScrollRow < 0) this.inventoryScrollRow = 0;
                 if (this.inventoryScrollRow >= totalRows) this.inventoryScrollRow = Math.max(0, totalRows - 1);
-                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 60}px)`;
+                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 74}px)`;
             }
 
             handleNav(dir) {
