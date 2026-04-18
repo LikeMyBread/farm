@@ -115,6 +115,7 @@
                 this.cash = 10;
                 this.energy = CONFIG.energyMax;
                 this.inventory = [
+                    { id: 'look', name: 'Look', type: 'tool', count: 1 },
                     { id: 'watering_can', name: 'Can', type: 'tool', count: 1 },
                     { id: 'pickaxe', name: 'Pick', type: 'tool', count: 1 },
                     { id: 'axe', name: 'Axe', type: 'tool', count: 1 },
@@ -297,8 +298,14 @@
                 const x = (e.clientX - rect.left) * scaleX;
                 const y = (e.clientY - rect.top) * scaleY;
 
+                const activeItem = this.inventory[this.selectedItemIndex];
+
                 if (this.location === 'farm') {
                     if (this.isHovering(this.farmHouseRect)) {
+                        if (activeItem && activeItem.id === 'look') {
+                            this.log("Your farm house. It looks cozy inside.");
+                            return;
+                        }
                         this.changeLocation('house');
                         return;
                     }
@@ -308,7 +315,29 @@
 
                     if (col >= 0 && col < CONFIG.gridCols && row >= 0 && row < CONFIG.gridRows) {
                         const cell = this.grid[row][col];
-                        const activeItem = this.inventory[this.selectedItemIndex];
+
+                        if (activeItem && activeItem.id === 'look') {
+                            if (cell.obstacle) {
+                                let desc = 'An obstacle.';
+                                if (cell.obstacle === 'rock_large') desc = 'A large, heavy rock.';
+                                else if (cell.obstacle === 'rock_small') desc = 'A small stone.';
+                                else if (cell.obstacle === 'log') desc = 'A fallen log.';
+                                else if (cell.obstacle === 'stick') desc = 'A wooden stick.';
+                                this.log(`You see: ${desc}`);
+                            } else if (cell.crop) {
+                                const data = CROPS[cell.crop];
+                                const progress = cell.growthDays / data.daysToGrow;
+                                let desc = `A ${data.name.toLowerCase()} plant.`;
+                                if (progress >= 1) desc += ' It is ready to harvest.';
+                                else if (progress > 0.5) desc += ' It is growing well.';
+                                else desc += ' It is just a seedling.';
+                                if (!cell.watered) desc += ' It needs water.';
+                                this.log(`You see: ${desc}`);
+                            } else {
+                                this.log(`You see: ${cell.watered ? 'Wet tilled soil.' : 'Dry soil. Needs water.'}`);
+                            }
+                            return;
+                        }
 
                         if (cell.obstacle) {
                             if (!activeItem) return;
@@ -386,10 +415,18 @@
                     }
                 } else if (this.location === 'town') {
                     if (this.isHovering(this.townStoreRect)) {
+                        if (activeItem && activeItem.id === 'look') {
+                            this.log("The General Store. A good place to buy seeds.");
+                            return;
+                        }
                         this.changeLocation('store');
                     }
                 } else if (this.location === 'house') {
                     if (this.isHovering(this.bedRect)) {
+                        if (activeItem && activeItem.id === 'look') {
+                            this.log("Your bed. Sleep here to advance to the next day.");
+                            return;
+                        }
                         this.advanceDay();
                     }
                 }
@@ -470,17 +507,17 @@
 
             renderShop() {
                 const seedItemsHtml = Object.keys(CROPS).filter(k => CROPS[k].seedCost).map(key => `
-                <div class="shop-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;">
+                <div class="shop-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;" onclick="game.lookAtShopItem('${key}', 'seed')">
                     <span>${CROPS[key].name} Seed (${CROPS[key].daysToGrow}d)</span>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <span>$${CROPS[key].seedCost}</span>
-                        <span class="ascii-btn" onclick="game.buySeed('${key}')">[BUY]</span>
+                        <span class="ascii-btn" onclick="event.stopPropagation(); game.buySeed('${key}')">[BUY]</span>
                     </div>
                 </div>
             `).join('');
 
                 const inventoryItemsHtml = this.inventory.filter(i => i.type === 'harvested').map(item => `
-                <div class="shop-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;">
+                <div class="shop-item" style="display: flex; justify-content: space-between; align-items: center; cursor: default;" onclick="game.lookAtShopItem('${item.id}', 'harvested')">
                     <span>${item.name} (x${item.count})</span>
                     <div style="display: flex; gap: 5px; align-items: center; font-size: 14px;">
                         <span class="ascii-btn" onclick="event.stopPropagation(); game.sellCrop('${item.id}', 1)">[SELL 1 ($${CROPS[item.crop].value})]</span>
@@ -491,6 +528,22 @@
             `).join('');
 
                 document.getElementById('shop-items').innerHTML = seedItemsHtml + inventoryItemsHtml || "No business today.";
+            }
+
+            lookAtShopItem(id, type) {
+                const activeItem = this.inventory[this.selectedItemIndex];
+                if (activeItem && activeItem.id === 'look') {
+                    if (type === 'seed') {
+                        const crop = CROPS[id];
+                        this.log(`You see: A packet of ${crop.name} seeds. Takes ${crop.daysToGrow} days to grow.`);
+                    } else if (type === 'harvested') {
+                        const item = this.inventory.find(i => i.id === id);
+                        if (item) {
+                            const crop = CROPS[item.crop];
+                            this.log(`You see: Freshly harvested ${crop.name}. Sells for $${crop.value}.`);
+                        }
+                    }
+                }
             }
 
             buySeed(key) {
