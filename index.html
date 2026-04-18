@@ -122,7 +122,7 @@
                     { id: 'carrot_seed', name: 'Carrot', type: 'seed', crop: 'carrot', count: 5 },
                     { id: 'wheat_seed', name: 'Wheat', type: 'seed', crop: 'wheat', count: 3 }
                 ];
-                this.selectedItemIndex = 0;
+                this.selectedItemIndex = 1;
                 this.inventoryScrollRow = 0;
                 this.grid = [];
                 this.initGrid();
@@ -261,7 +261,11 @@
                     }
                 }
 
-                this.selectedItemIndex = index;
+                if (this.selectedItemIndex === index) {
+                    this.selectedItemIndex = -1;
+                } else {
+                    this.selectedItemIndex = index;
+                }
                 this.updateUI();
             }
 
@@ -405,7 +409,7 @@
                                     activeItem.count--;
                                     if (activeItem.count <= 0) {
                                         this.inventory.splice(this.selectedItemIndex, 1);
-                                        this.selectedItemIndex = 0;
+                                        this.selectedItemIndex = 1;
                                     }
                                     this.log(`Planted ${activeItem.crop}`);
                                     this.updateUI();
@@ -452,7 +456,7 @@
                     if (crops.length > 0) {
                         const targetCropType = crops[Math.floor(Math.random() * crops.length)].crop;
                         const cropName = CROPS[targetCropType].name.toLowerCase();
-                        
+
                         for (let r = 0; r < CONFIG.gridRows; r++) {
                             for (let c = 0; c < CONFIG.gridCols; c++) {
                                 if (this.grid[r][c].crop === targetCropType) {
@@ -535,7 +539,7 @@
                 if (activeItem && activeItem.id === 'look') {
                     if (type === 'seed') {
                         const crop = CROPS[id];
-                        this.log(`You see: A packet of ${crop.name} seeds. Takes ${crop.daysToGrow} days to grow.`);
+                        this.log(`You see: A packet of ${crop.name} seeds. Takes ${crop.daysToGrow} days to grow. Restores ${crop.restoreEnergy} energy when eaten. Sells for $${crop.value}.`);
                     } else if (type === 'harvested') {
                         const item = this.inventory.find(i => i.id === id);
                         if (item) {
