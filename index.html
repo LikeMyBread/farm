@@ -413,10 +413,18 @@
                         }
                     }
                     if (crops.length > 0) {
-                        const victim = crops[Math.floor(Math.random() * crops.length)];
-                        victim.crop = null;
-                        victim.growthDays = 0;
-                        events.push("A sudden blight has withered one of your crops...");
+                        const targetCropType = crops[Math.floor(Math.random() * crops.length)].crop;
+                        const cropName = CROPS[targetCropType].name.toLowerCase();
+                        
+                        for (let r = 0; r < CONFIG.gridRows; r++) {
+                            for (let c = 0; c < CONFIG.gridCols; c++) {
+                                if (this.grid[r][c].crop === targetCropType) {
+                                    this.grid[r][c].crop = null;
+                                    this.grid[r][c].growthDays = 0;
+                                }
+                            }
+                        }
+                        events.push(`A sudden ${cropName} blight has withered your crops...`);
                     }
                 }
 
