@@ -65,7 +65,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     width: 300px;
-    height: 32px;
+    height: 16px;
     border: 2px solid #fff;
     background: #000;
     overflow: hidden;
@@ -138,7 +138,7 @@ body {
 .inventory-viewport {
     display: flex;
     overflow: hidden;
-    width: 434px; /* Space for 6 items + gaps */
+    width: 582px; /* Space for 8 items + gaps */
     height: 68px; /* Space for exactly one item row */
 }
 
@@ -147,7 +147,7 @@ body {
     gap: 10px;
     flex-wrap: wrap;
     transition: transform 0.2s ease-in-out;
-    width: 434px;
+    width: 582px;
 }
 
 .inv-slot {
@@ -162,6 +162,15 @@ body {
     font-size: 12px;
     text-align: center;
     box-sizing: border-box;
+    position: relative;
+}
+
+.hotkey-hint {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 10px;
+    color: #aaa;
 }
 
 .inv-slot.selected {
