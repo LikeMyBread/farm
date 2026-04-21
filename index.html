@@ -35,8 +35,6 @@
                 <h3>GENERAL STORE</h3>
                 <p>Your Cash: $<span id="cash-display">0</span></p>
                 <div id="shop-items"></div>
-                <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #FFF;">(CLICK BOTTOM ARROW TO
-                    LEAVE)</div>
             </div>
 
             <div class="energy-container">
@@ -729,8 +727,8 @@
 
                                 const dx = Math.max(Math.abs(cell.waterAnimation.clickX - x), Math.abs(x + CONFIG.cellSize - cell.waterAnimation.clickX));
                                 const dy = Math.max(Math.abs(cell.waterAnimation.clickY - y), Math.abs(y + CONFIG.cellSize - cell.waterAnimation.clickY));
-                                const maxR = Math.sqrt(dx*dx + dy*dy);
-                                
+                                const maxR = Math.sqrt(dx * dx + dy * dy);
+
                                 if (cell.waterAnimation.radius >= maxR) {
                                     cell.waterAnimation = null;
                                 }

@@ -207,13 +207,13 @@ body {
 }
 
 #nav-down {
-    bottom: 5px;
+    bottom: 130px;
     left: 50%;
     transform: translateX(-50%);
 }
 
 #nav-left {
-    left: 5px;
+    left: 190px;
     top: 50%;
     transform: translateY(-50%);
 }
