@@ -33,9 +33,20 @@
             </div>
 
             <div class="shop-ui" id="shop-container">
-                <h3>GENERAL STORE</h3>
-                <p>Your Cash: $<span id="cash-display">0</span></p>
-                <div id="shop-items"></div>
+                <div style="display: flex; flex-direction: row; gap: 20px;">
+                    <div
+                        style="display: flex; flex-direction: column; justify-content: center; gap: 40px; border-right: 1px solid #333;">
+                        <span class="ascii-btn" onclick="game.scrollShop(-1)" style="font-size: 24px;">[↑]</span>
+                        <span class="ascii-btn" onclick="game.scrollShop(1)" style="font-size: 24px;">[↓]</span>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <p style="margin: 0 0 10px 0;">Your Cash: $<span id="cash-display">0</span></p>
+                        <div id="shop-viewport"
+                            style="overflow-y: hidden; max-height: 200px; border-top: 1px solid #333; padding-top: 10px;">
+                            <div id="shop-items"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="energy-container">
@@ -598,6 +609,13 @@
                 }
             }
 
+            scrollShop(dir) {
+                const viewport = document.getElementById('shop-viewport');
+                if (viewport) {
+                    viewport.scrollBy({ top: dir * 70, behavior: 'smooth' });
+                }
+            }
+
             buySeed(key) {
                 const cost = CROPS[key].seedCost;
                 if (this.cash >= cost) {
@@ -774,12 +792,6 @@
                     ctx.fillStyle = '#fff';
                     ctx.font = '20px Courier New';
                     ctx.textAlign = 'center';
-                    ctx.fillText("GENERAL STORE INTERIOR", 400, 80);
-
-                    ctx.fillText("________________________", 400, 300);
-                    ctx.fillText("|  [ SEEDS ]  [ TOOLS ] |", 400, 280);
-                    ctx.fillText("|                       |", 400, 320);
-                    ctx.fillText("|_______ ( o ) _________|", 400, 340);
 
                 } else if (this.location === 'house') {
                     ctx.fillStyle = '#fff';
