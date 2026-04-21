@@ -15,8 +15,9 @@
 
         <div id="ui-overlay">
             <div class="header">
-                <span id="location-name">THE FARM</span>
-                <span id="day-display">DAY 1</span>
+                <span style="width: 150px; text-align: left;">$<span id="header-cash-display">0</span></span>
+                <span id="location-name" style="flex: 1; text-align: center;">THE FARM</span>
+                <span id="day-display" style="width: 150px; text-align: right;">DAY 1</span>
             </div>
             <div class="side-log" id="event-log"></div>
 
@@ -199,6 +200,8 @@
                 document.getElementById('day-display').innerText = `DAY ${this.day}`;
                 const cashSpan = document.getElementById('cash-display');
                 if (cashSpan) cashSpan.innerText = this.cash;
+                const headerCashSpan = document.getElementById('header-cash-display');
+                if (headerCashSpan) headerCashSpan.innerText = this.cash;
 
                 energyBarEl.style.width = `${(this.energy / CONFIG.energyMax) * 100}%`;
 
@@ -514,11 +517,10 @@
                 for (let r = 0; r < CONFIG.gridRows; r++) {
                     for (let c = 0; c < CONFIG.gridCols; c++) {
                         const cell = this.grid[r][c];
-                        if (this.isRaining) cell.watered = true;
                         if (cell.crop && cell.watered) {
                             cell.growthDays++;
                         }
-                        cell.watered = false;
+                        cell.watered = this.isRaining;
                     }
                 }
 
