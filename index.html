@@ -102,8 +102,11 @@
         };
 
         const CROPS = {
-            carrot: { name: 'Carrot', seedChar: '.', midChar: 'c', endChar: 'C', value: 10, seedCost: 2, daysToGrow: 2, restoreEnergy: 15 },
-            wheat: { name: 'Wheat', seedChar: '.', midChar: 'w', endChar: 'W', value: 15, seedCost: 4, daysToGrow: 4, restoreEnergy: 20 },
+            carrot: { name: 'Carrot', seedChar: '.', midChar: 'c', endChar: 'C', value: 10, seedCost: 2, daysToGrow: 2, restoreEnergy: 15, regrows: 'None' },
+            wheat: { name: 'Wheat', seedChar: '.', midChar: 'w', endChar: 'W', value: 15, seedCost: 4, daysToGrow: 4, restoreEnergy: 20, regrows: 'None' },
+            potato: { name: 'Potato', seedChar: '.', midChar: 'p', endChar: 'P', value: 8, seedCost: 5, daysToGrow: 3, restoreEnergy: 45, regrows: 'None' },
+            grape: { name: 'Grape', seedChar: '.', midChar: 'g', endChar: 'G', value: 6, seedCost: 20, daysToGrow: 4, restoreEnergy: 5, regrows: 'Half' },
+            kale: { name: 'Kale', seedChar: '.', midChar: 'k', endChar: 'K', value: 5, seedCost: 15, daysToGrow: 3, restoreEnergy: 8, regrows: 'Full' },
             wood: { name: 'Wood', value: 2 },
             stone: { name: 'Stone', value: 3 }
         };
@@ -120,7 +123,8 @@
                     { id: 'pickaxe', name: 'Pick', type: 'tool', count: 1 },
                     { id: 'axe', name: 'Axe', type: 'tool', count: 1 },
                     { id: 'carrot_seed', name: 'Carrot', type: 'seed', crop: 'carrot', count: 5 },
-                    { id: 'wheat_seed', name: 'Wheat', type: 'seed', crop: 'wheat', count: 3 }
+                    { id: 'wheat_seed', name: 'Wheat', type: 'seed', crop: 'wheat', count: 3 },
+                    { id: 'kale_seed', name: 'Kale', type: 'seed', crop: 'kale', count: 1 }
                 ];
                 this.selectedItemIndex = 1;
                 this.inventoryScrollRow = 0;
@@ -364,7 +368,7 @@
                                 const progress = cell.growthDays / data.daysToGrow;
                                 let desc = `A ${data.name.toLowerCase()} plant.`;
                                 if (progress >= 1) desc += ' It is ready to harvest.';
-                                else if (progress > 0.5) desc += ' It is growing well.';
+                                else if (progress >= 0.5) desc += ' It is growing well.';
                                 else desc += ' It is just a seedling.';
                                 if (!cell.watered) desc += ' It needs water.';
                                 this.log(`You see: ${desc}`);
@@ -415,8 +419,16 @@
                                 if (this.consumeEnergy(CONFIG.costHarvest)) {
                                     this.addToInventory(cell.crop);
                                     this.log(`Harvested ${cell.crop}!`);
-                                    cell.crop = null;
-                                    cell.growthDays = 0;
+
+                                    if (cropData.regrows === 'Half') {
+                                        cell.growthDays = Math.ceil(cropData.daysToGrow / 2);
+                                    } else if (cropData.regrows === 'Full') {
+                                        cell.growthDays = 0;
+                                    } else {
+                                        cell.crop = null;
+                                        cell.growthDays = 0;
+                                    }
+
                                     this.updateUI();
                                 }
                                 return;
@@ -570,7 +582,11 @@
                 if (activeItem && activeItem.id === 'look') {
                     if (type === 'seed') {
                         const crop = CROPS[id];
-                        this.log(`You see: A packet of ${crop.name} seeds. Takes ${crop.daysToGrow} days to grow. Restores ${crop.restoreEnergy} energy when eaten. Sells for $${crop.value}.`);
+                        let desc = `You see: A packet of ${crop.name} seeds. Takes ${crop.daysToGrow} days to grow.`;
+                        if (crop.regrows === 'Half') desc += ` Regrows quickly after harvest.`;
+                        else if (crop.regrows === 'Full') desc += ` Regrows from seedling after harvest.`;
+                        desc += ` Restores ${crop.restoreEnergy} energy when eaten. Sells for $${crop.value}.`;
+                        this.log(desc);
                     } else if (type === 'harvested') {
                         const item = this.inventory.find(i => i.id === id);
                         if (item) {
@@ -682,7 +698,7 @@
                                 const data = CROPS[cell.crop];
                                 let char = data.seedChar;
                                 const progress = cell.growthDays / data.daysToGrow;
-                                if (progress > 0.5) char = data.midChar;
+                                if (progress >= 0.5) char = data.midChar;
                                 if (progress >= 1) char = data.endChar;
 
                                 ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);

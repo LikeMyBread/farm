@@ -138,8 +138,10 @@ body {
 .inventory-viewport {
     display: flex;
     overflow: hidden;
-    width: 582px; /* Space for 8 items + gaps */
-    height: 68px; /* Space for exactly one item row */
+    width: 582px;
+    /* Space for 8 items + gaps */
+    height: 68px;
+    /* Space for exactly one item row */
 }
 
 .inventory-bar {
@@ -170,7 +172,7 @@ body {
     top: 2px;
     left: 4px;
     font-size: 10px;
-    color: #aaa;
+    color: #fff;
 }
 
 .inv-slot.selected {
@@ -198,10 +200,29 @@ body {
     color: #000;
 }
 
-#nav-up { top: 5px; left: 50%; transform: translateX(-50%); }
-#nav-down { bottom: 5px; left: 50%; transform: translateX(-50%); }
-#nav-left { left: 5px; top: 50%; transform: translateY(-50%); }
-#nav-right { right: 5px; top: 50%; transform: translateY(-50%); }
+#nav-up {
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#nav-down {
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#nav-left {
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#nav-right {
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+}
 
 canvas {
     display: block;
