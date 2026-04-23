@@ -81,6 +81,21 @@
   |______|   
             </pre>
 
+            <pre id="ascii-npc-celina" style="position: absolute; left: 580px; top: 230px; transform: translateX(-50%); font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 18px; color: #fff; text-align: center; margin: 0; pointer-events: none; display: none; z-index: 5;">
+  O  
+ /|\ 
+ / \ 
+CELINA
+            </pre>
+
+            <div id="dialogue-ui" style="display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: 200px; background: #000; border-top: 2px solid #fff; z-index: 50; padding: 20px; box-sizing: border-box; flex-direction: row; gap: 20px; pointer-events: auto;">
+                <pre id="dialogue-portrait" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 18px; color: #fff; margin: 0; min-width: 150px; border-right: 1px dashed #fff; padding-right: 20px;"></pre>
+                <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                    <p id="dialogue-text" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; color: #fff; margin: 0; white-space: pre-wrap;"></p>
+                    <div id="dialogue-options" style="display: flex; flex-direction: column; gap: 5px;"></div>
+                </div>
+            </div>
+
             <pre id="ascii-town-store"
                 style="position: absolute; left: 400px; top: 186px; transform: translateX(-50%); font-family: 'Courier New', Courier, monospace; font-size: 18px; line-height: 20px; color: #fff; text-align: center; margin: 0; pointer-events: none; display: none; z-index: 5;">
     _________    
@@ -188,6 +203,8 @@
                 this.farmHouseRect = { x: 375, y: 65, w: 130, h: 140 };
                 this.townStoreRect = { x: 300, y: 195, w: 200, h: 160 };
                 this.bedRect = { x: 290, y: 270, w: 220, h: 150 };
+                this.celinaRect = { x: 550, y: 230, w: 60, h: 80 };
+                this.activeDialogue = null;
 
                 canvas.addEventListener('mousedown', (e) => this.handleClick(e));
                 canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
@@ -271,6 +288,9 @@
                 document.getElementById('ascii-farm-house').style.display = this.location === 'farm' ? 'block' : 'none';
                 document.getElementById('ascii-town-store').style.display = this.location === 'town' ? 'block' : 'none';
                 document.getElementById('ascii-home-interior').style.display = this.location === 'house' ? 'block' : 'none';
+                document.getElementById('ascii-npc-celina').style.display = this.location === 'town' ? 'block' : 'none';
+                
+                document.getElementById('dialogue-ui').style.display = this.activeDialogue ? 'flex' : 'none';
 
                 invEl.innerHTML = this.inventory.map((item, index) => {
                     const hotkeyNum = (index % 8) + 1;
@@ -304,6 +324,83 @@
                 else if (this.location === 'town' && dir === 'left') this.changeLocation('farm');
                 else if (this.location === 'house' && dir === 'down') this.changeLocation('farm');
                 else if (this.location === 'store' && dir === 'down') this.changeLocation('town');
+            }
+
+            getDialogueData() {
+                return {
+                    celina: {
+                        portrait: "  O  \n /|\\ \n / \\ \nCELINA",
+                        nodes: {
+                            start: {
+                                text: "Hello there! I'm Celina. Are you new to town?",
+                                options: [
+                                    { text: "Yes, nice to meet you.", next: "welcome" },
+                                    { text: "Just passing through.", next: "passing" }
+                                ]
+                            },
+                            welcome: {
+                                text: "Welcome to our little community! Let me know if you need any help.",
+                                options: [
+                                    { text: "[Leave]", next: "end" }
+                                ]
+                            },
+                            passing: {
+                                text: "Oh, well, safe travels on your journey then!",
+                                options: [
+                                    { text: "[Leave]", next: "end" }
+                                ]
+                            }
+                        }
+                    }
+                };
+            }
+
+            startDialogue(npcId, nodeId) {
+                const data = this.getDialogueData()[npcId];
+                if (!data) return;
+                
+                this.activeDialogue = {
+                    npcId: npcId,
+                    nodeId: nodeId,
+                    data: data
+                };
+                
+                this.renderDialogue();
+                this.updateUI();
+            }
+            
+            renderDialogue() {
+                if (!this.activeDialogue) return;
+                
+                const data = this.activeDialogue.data;
+                const node = data.nodes[this.activeDialogue.nodeId];
+                
+                document.getElementById('dialogue-portrait').innerText = data.portrait;
+                document.getElementById('dialogue-text').innerText = node.text;
+                
+                const optionsHtml = node.options.map((opt, idx) => `
+                    <div class="dialogue-option" onclick="game.selectDialogueOption(${idx})">> ${opt.text}</div>
+                `).join('');
+                
+                document.getElementById('dialogue-options').innerHTML = optionsHtml;
+            }
+            
+            selectDialogueOption(idx) {
+                if (!this.activeDialogue) return;
+                const node = this.activeDialogue.data.nodes[this.activeDialogue.nodeId];
+                const opt = node.options[idx];
+                
+                if (opt.next === 'end') {
+                    this.closeDialogue();
+                } else {
+                    this.activeDialogue.nodeId = opt.next;
+                    this.renderDialogue();
+                }
+            }
+            
+            closeDialogue() {
+                this.activeDialogue = null;
+                this.updateUI();
             }
 
             selectItem(index) {
@@ -386,6 +483,8 @@
             }
 
             handleClick(e) {
+                if (this.activeDialogue) return;
+
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
@@ -533,6 +632,13 @@
                             return;
                         }
                         this.changeLocation('store');
+                    }
+                    if (this.isHovering(this.celinaRect)) {
+                        if (activeItem && activeItem.id === 'look') {
+                            this.log("A friendly-looking woman named Celina.");
+                            return;
+                        }
+                        this.startDialogue('celina', 'start');
                     }
                 } else if (this.location === 'house') {
                     if (this.isHovering(this.bedRect)) {
@@ -827,6 +933,9 @@
 
                     if (this.isHovering(this.townStoreRect)) {
                         this.drawHoverOutline(this.townStoreRect);
+                    }
+                    if (this.isHovering(this.celinaRect)) {
+                        this.drawHoverOutline(this.celinaRect);
                     }
 
                 } else if (this.location === 'store') {
