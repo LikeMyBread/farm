@@ -81,17 +81,22 @@
   |______|   
             </pre>
 
-            <pre id="ascii-npc-celina" style="position: absolute; left: 580px; top: 230px; transform: translateX(-50%); font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 18px; color: #fff; text-align: center; margin: 0; pointer-events: none; display: none; z-index: 5;">
+            <pre id="ascii-npc-celina"
+                style="position: absolute; left: 580px; top: 230px; transform: translateX(-50%); font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 18px; color: #fff; text-align: center; margin: 0; pointer-events: none; display: none; z-index: 5;">
   O  
  /|\ 
  / \ 
 CELINA
             </pre>
 
-            <div id="dialogue-ui" style="display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: 200px; background: #000; border-top: 2px solid #fff; z-index: 50; padding: 20px; box-sizing: border-box; flex-direction: row; gap: 20px; pointer-events: auto;">
-                <pre id="dialogue-portrait" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 18px; color: #fff; margin: 0; min-width: 150px; border-right: 1px dashed #fff; padding-right: 20px;"></pre>
+            <div id="dialogue-ui"
+                style="display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: 200px; background: #000; border-top: 2px solid #fff; z-index: 50; padding: 20px; box-sizing: border-box; flex-direction: row; gap: 20px; pointer-events: auto;">
+                <pre id="dialogue-portrait"
+                    style="font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 18px; color: #fff; margin: 0; min-width: 150px; border-right: 1px dashed #fff; padding-right: 20px;"></pre>
                 <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
-                    <p id="dialogue-text" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; color: #fff; margin: 0; white-space: pre-wrap;"></p>
+                    <p id="dialogue-text"
+                        style="font-family: 'Courier New', Courier, monospace; font-size: 16px; color: #fff; margin: 0; white-space: pre-wrap;">
+                    </p>
                     <div id="dialogue-options" style="display: flex; flex-direction: column; gap: 5px;"></div>
                 </div>
             </div>
@@ -289,7 +294,7 @@ CELINA
                 document.getElementById('ascii-town-store').style.display = this.location === 'town' ? 'block' : 'none';
                 document.getElementById('ascii-home-interior').style.display = this.location === 'house' ? 'block' : 'none';
                 document.getElementById('ascii-npc-celina').style.display = this.location === 'town' ? 'block' : 'none';
-                
+
                 document.getElementById('dialogue-ui').style.display = this.activeDialogue ? 'flex' : 'none';
 
                 invEl.innerHTML = this.inventory.map((item, index) => {
@@ -306,6 +311,7 @@ CELINA
             }
 
             scrollInventory(dir) {
+                if (this.activeDialogue) return;
                 const itemsPerRow = 8;
                 const totalRows = Math.ceil(this.inventory.length / itemsPerRow);
                 if (totalRows <= 1) return;
@@ -320,6 +326,7 @@ CELINA
             }
 
             handleNav(dir) {
+                if (this.activeDialogue) return;
                 if (this.location === 'farm' && dir === 'right') this.changeLocation('town');
                 else if (this.location === 'town' && dir === 'left') this.changeLocation('farm');
                 else if (this.location === 'house' && dir === 'down') this.changeLocation('farm');
@@ -358,38 +365,38 @@ CELINA
             startDialogue(npcId, nodeId) {
                 const data = this.getDialogueData()[npcId];
                 if (!data) return;
-                
+
                 this.activeDialogue = {
                     npcId: npcId,
                     nodeId: nodeId,
                     data: data
                 };
-                
+
                 this.renderDialogue();
                 this.updateUI();
             }
-            
+
             renderDialogue() {
                 if (!this.activeDialogue) return;
-                
+
                 const data = this.activeDialogue.data;
                 const node = data.nodes[this.activeDialogue.nodeId];
-                
+
                 document.getElementById('dialogue-portrait').innerText = data.portrait;
                 document.getElementById('dialogue-text').innerText = node.text;
-                
+
                 const optionsHtml = node.options.map((opt, idx) => `
                     <div class="dialogue-option" onclick="game.selectDialogueOption(${idx})">> ${opt.text}</div>
                 `).join('');
-                
+
                 document.getElementById('dialogue-options').innerHTML = optionsHtml;
             }
-            
+
             selectDialogueOption(idx) {
                 if (!this.activeDialogue) return;
                 const node = this.activeDialogue.data.nodes[this.activeDialogue.nodeId];
                 const opt = node.options[idx];
-                
+
                 if (opt.next === 'end') {
                     this.closeDialogue();
                 } else {
@@ -397,13 +404,14 @@ CELINA
                     this.renderDialogue();
                 }
             }
-            
+
             closeDialogue() {
                 this.activeDialogue = null;
                 this.updateUI();
             }
 
             selectItem(index) {
+                if (this.activeDialogue) return;
                 const item = this.inventory[index];
                 if (item && item.type === 'harvested') {
                     const cropDef = CROPS[item.crop];
@@ -461,6 +469,7 @@ CELINA
             }
 
             handleKeyDown(e) {
+                if (this.activeDialogue) return;
                 if (reportEl.style.display === 'block') return;
 
                 if (e.key === 'Tab') {
