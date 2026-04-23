@@ -70,6 +70,45 @@
                     ENERGY</div>
             </div>
 
+            <pre id="ascii-farm-house"
+                style="position: absolute; left: 440px; top: 56px; transform: translateX(-50%); font-family: 'Courier New', Courier, monospace; font-size: 16px; line-height: 18px; color: #fff; text-align: center; margin: 0; pointer-events: none; display: none; z-index: 5;">
+     /\      
+    /  \     
+   /____\    
+  |  __  |   
+  | |  | |   
+  | |__| |   
+  |______|   
+            </pre>
+
+            <pre id="ascii-town-store"
+                style="position: absolute; left: 400px; top: 186px; transform: translateX(-50%); font-family: 'Courier New', Courier, monospace; font-size: 18px; line-height: 20px; color: #fff; text-align: center; margin: 0; pointer-events: none; display: none; z-index: 5;">
+    _________    
+   /         \   
+  /  STORE    \  
+ |   _    _   | 
+ |  [ ]  [ ]  | 
+ |      _     | 
+ |_____| |____| 
+            </pre>
+
+            <div id="ascii-home-interior"
+                style="position: absolute; left: 400px; top: 185px; transform: translateX(-50%); text-align: center; pointer-events: none; display: none; z-index: 5;">
+                <div
+                    style="font-family: 'Courier New', Courier, monospace; font-size: 20px; color: #fff; margin-bottom: 78px;">
+                    INSIDE YOUR HOME</div>
+                <pre
+                    style="font-family: 'Courier New', Courier, monospace; font-size: 20px; line-height: 22px; color: #fff; text-align: center; margin: 0;">
+    _________________   
+   |#################|  
+   |#               #|  
+   |#      BED      #|  
+   |#               #|  
+   |#################|  
+   |_________________|  
+                </pre>
+            </div>
+
             <div class="inventory-wrapper">
                 <div class="inventory-scroll">
                     <div class="scroll-arrow" onclick="game.scrollInventory(-1)">↑</div>
@@ -228,6 +267,10 @@
 
                 shopContainer.style.display = this.location === 'store' ? 'block' : 'none';
                 if (this.location === 'store') this.renderShop();
+
+                document.getElementById('ascii-farm-house').style.display = this.location === 'farm' ? 'block' : 'none';
+                document.getElementById('ascii-town-store').style.display = this.location === 'town' ? 'block' : 'none';
+                document.getElementById('ascii-home-interior').style.display = this.location === 'house' ? 'block' : 'none';
 
                 invEl.innerHTML = this.inventory.map((item, index) => {
                     const hotkeyNum = (index % 8) + 1;
@@ -525,12 +568,32 @@
                     }
                 }
 
+                const totalSquares = CONFIG.gridRows * CONFIG.gridCols;
+
                 for (let r = 0; r < CONFIG.gridRows; r++) {
                     for (let c = 0; c < CONFIG.gridCols; c++) {
                         const cell = this.grid[r][c];
                         if (cell.crop && cell.watered) {
                             cell.growthDays++;
                         }
+
+                        if (!cell.crop && !cell.obstacle) {
+                            if (Math.random() < 1 / totalSquares) {
+                                const rand = Math.random();
+                                if (rand < 0.25) {
+                                    cell.obstacle = 'rock_large';
+                                } else if (rand < 0.5) {
+                                    cell.obstacle = 'rock_small';
+                                } else if (rand < 0.75) {
+                                    cell.obstacle = 'log';
+                                } else {
+                                    cell.obstacle = 'stick';
+                                    const stickChars = ['/', '\\', '|', '-', '_'];
+                                    cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
+                                }
+                            }
+                        }
+
                         cell.watered = this.isRaining;
                     }
                 }
@@ -690,22 +753,6 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 if (this.location === 'farm') {
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '16px Courier New';
-                    ctx.textAlign = 'center';
-                    const houseAscii = [
-                        "     /\\      ",
-                        "    /  \\     ",
-                        "   /____\\    ",
-                        "  |  __  |   ",
-                        "  | |  | |   ",
-                        "  | |__| |   ",
-                        "  |______|   "
-                    ];
-                    houseAscii.forEach((line, i) => {
-                        ctx.fillText(line, 440, 70 + i * 18);
-                    });
-
                     if (this.isHovering(this.farmHouseRect)) {
                         this.drawHoverOutline(this.farmHouseRect);
                     }
@@ -768,25 +815,9 @@
                     ctx.textAlign = 'center';
                     ctx.fillText("MAIN STREET", 400, 100);
 
-                    ctx.font = '18px Courier New';
-                    const storeAscii = [
-                        "    _________    ",
-                        "   /         \\   ",
-                        "  /  STORE    \\  ",
-                        " |   _    _   | ",
-                        " |  [ ]  [ ]  | ",
-                        " |      _     | ",
-                        " |_____| |____| "
-                    ];
-                    storeAscii.forEach((line, i) => {
-                        ctx.fillText(line, 400, 200 + i * 20);
-                    });
-
                     if (this.isHovering(this.townStoreRect)) {
                         this.drawHoverOutline(this.townStoreRect);
                     }
-
-
 
                 } else if (this.location === 'store') {
                     ctx.fillStyle = '#fff';
@@ -794,26 +825,9 @@
                     ctx.textAlign = 'center';
 
                 } else if (this.location === 'house') {
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '20px Courier New';
-                    ctx.textAlign = 'center';
-                    ctx.fillText("INSIDE YOUR HOME", 400, 200);
-
                     if (this.isHovering(this.bedRect)) {
                         this.drawHoverOutline(this.bedRect);
                     }
-
-                    const bed = [
-                        "    _________________   ",
-                        "   |#################|  ",
-                        "   |#               #|  ",
-                        "   |#      BED      #|  ",
-                        "   |_________________|  ",
-                        "   | |             | |  "
-                    ];
-                    bed.forEach((line, i) => {
-                        ctx.fillText(line, 400, 300 + i * 20);
-                    });
                 }
 
                 if (this.isRaining && (this.location === 'farm' || this.location === 'town')) {
