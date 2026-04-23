@@ -469,6 +469,16 @@
                         }
 
                         if (cell.crop) {
+                            if (activeItem && (activeItem.id === 'pickaxe' || activeItem.id === 'axe')) {
+                                if (this.consumeEnergy(5)) {
+                                    this.log(`Destroyed the ${CROPS[cell.crop].name.toLowerCase()} plant.`);
+                                    cell.crop = null;
+                                    cell.growthDays = 0;
+                                    this.updateUI();
+                                }
+                                return;
+                            }
+
                             const cropData = CROPS[cell.crop];
                             if (cell.growthDays >= cropData.daysToGrow) {
                                 if (this.consumeEnergy(CONFIG.costHarvest)) {
