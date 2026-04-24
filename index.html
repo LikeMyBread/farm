@@ -307,6 +307,12 @@ CELINA
                     <div>${item.type === 'tool' ? '' : 'x' + item.count}</div>
                 </div>
             `}).join('');
+                
+                const maxRow = Math.max(0, Math.ceil(this.inventory.length / 8) - 1);
+                if (this.inventoryScrollRow > maxRow) {
+                    this.inventoryScrollRow = maxRow;
+                }
+                
                 invEl.style.transform = `translateY(-${this.inventoryScrollRow * 74}px)`;
             }
 
@@ -334,6 +340,7 @@ CELINA
             }
 
             getDialogueData() {
+                const hasUpgradedCan = this.inventory.some(i => i.id === 'upgraded_watering_can');
                 return {
                     celina: {
                         portrait: "  O  \n /|\\ \n / \\ \nCELINA",
@@ -341,12 +348,31 @@ CELINA
                             start: {
                                 text: "Hello there! I'm Celina. Are you new to town?",
                                 options: [
-                                    { text: "Yes, nice to meet you.", next: "welcome" },
+                                    { text: "Yes, nice to meet you.", next: hasUpgradedCan ? "already_upgraded" : "welcome" },
                                     { text: "Just passing through.", next: "passing" }
                                 ]
                             },
                             welcome: {
-                                text: "Welcome to our little community! Let me know if you need any help.",
+                                text: "Welcome to our little community! Say, if you bring me 10 wood and 10 stone, I can upgrade that watering can of yours.",
+                                options: [
+                                    { text: "Here are the materials.", action: "upgradeCan" },
+                                    { text: "[Leave]", next: "end" }
+                                ]
+                            },
+                            upgrade_success: {
+                                text: "Here you go! This upgraded can will water two squares at once.",
+                                options: [
+                                    { text: "Thanks!", next: "end" }
+                                ]
+                            },
+                            upgrade_fail: {
+                                text: "Hmm, it doesn't look like you have 10 wood and 10 stone yet. Come back when you do!",
+                                options: [
+                                    { text: "[Leave]", next: "end" }
+                                ]
+                            },
+                            already_upgraded: {
+                                text: "Welcome to our little community! How is that upgraded watering can treating you?",
                                 options: [
                                     { text: "[Leave]", next: "end" }
                                 ]
@@ -396,11 +422,45 @@ CELINA
                 if (!this.activeDialogue) return;
                 const node = this.activeDialogue.data.nodes[this.activeDialogue.nodeId];
                 const opt = node.options[idx];
-
+                
+                if (opt.action) {
+                    this.executeDialogueAction(opt.action);
+                    return;
+                }
+                
                 if (opt.next === 'end') {
                     this.closeDialogue();
                 } else {
                     this.activeDialogue.nodeId = opt.next;
+                    this.renderDialogue();
+                }
+            }
+
+            executeDialogueAction(action) {
+                if (action === 'upgradeCan') {
+                    const woodIndex = this.inventory.findIndex(i => i.id === 'wood_produce');
+                    const stoneIndex = this.inventory.findIndex(i => i.id === 'stone_produce');
+                    
+                    const woodCount = woodIndex >= 0 ? this.inventory[woodIndex].count : 0;
+                    const stoneCount = stoneIndex >= 0 ? this.inventory[stoneIndex].count : 0;
+                    
+                    if (woodCount >= 10 && stoneCount >= 10) {
+                        this.inventory[woodIndex].count -= 10;
+                        if (this.inventory[woodIndex].count <= 0) this.inventory.splice(woodIndex, 1);
+                        
+                        const newStoneIndex = this.inventory.findIndex(i => i.id === 'stone_produce');
+                        this.inventory[newStoneIndex].count -= 10;
+                        if (this.inventory[newStoneIndex].count <= 0) this.inventory.splice(newStoneIndex, 1);
+                        
+                        const canIndex = this.inventory.findIndex(i => i.id === 'watering_can');
+                        if (canIndex >= 0) {
+                            this.inventory[canIndex] = { id: 'upgraded_watering_can', name: 'Can+', type: 'tool', count: 1 };
+                        }
+                        
+                        this.activeDialogue.nodeId = 'upgrade_success';
+                    } else {
+                        this.activeDialogue.nodeId = 'upgrade_fail';
+                    }
                     this.renderDialogue();
                 }
             }
@@ -571,7 +631,7 @@ CELINA
                                 }
                                 return;
                             }
-                            if (activeItem.id !== 'watering_can') {
+                            if (activeItem.id !== 'watering_can' && activeItem.id !== 'upgraded_watering_can') {
                                 return;
                             }
                         }
@@ -610,12 +670,21 @@ CELINA
 
                         if (!activeItem) return;
 
-                        if (activeItem.id === 'watering_can') {
-                            if (!cell.watered) {
+                        if (activeItem.id === 'watering_can' || activeItem.id === 'upgraded_watering_can') {
+                            let cellsToWater = [cell];
+                            if (activeItem.id === 'upgraded_watering_can' && col + 1 < CONFIG.gridCols) {
+                                cellsToWater.push(this.grid[row][col + 1]);
+                            }
+
+                            const unwateredCells = cellsToWater.filter(c => !c.watered);
+                            if (unwateredCells.length > 0) {
                                 if (this.consumeEnergy(CONFIG.costWater)) {
-                                    cell.watered = true;
-                                    cell.waterAnimation = { clickX: x, clickY: y, radius: 0 };
-                                    this.log(`Watered square [${col},${row}]`);
+                                    unwateredCells.forEach(c => {
+                                        c.watered = true;
+                                        c.waterAnimation = { clickX: x, clickY: y, radius: 0 };
+                                    });
+                                    this.log(`Watered ${unwateredCells.length} square(s)`);
+                                    this.updateUI();
                                 }
                             }
                         } else if (activeItem.type === 'seed' && activeItem.count > 0) {
