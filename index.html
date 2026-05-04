@@ -42,7 +42,7 @@
                     <div style="flex: 1; min-width: 0;">
                         <p style="margin: 0 0 10px 0;">Your Cash: $<span id="cash-display">0</span></p>
                         <div id="shop-viewport"
-                            style="overflow-y: hidden; max-height: 200px; border-top: 1px solid #333; padding-top: 10px;">
+                            style="overflow-y: auto; max-height: 200px; border-top: 1px solid #333; padding-top: 10px; scrollbar-width: none;">
                             <div id="shop-items"></div>
                         </div>
                     </div>
@@ -330,27 +330,14 @@ CELINA
                 </div>
             `}).join('');
 
-                const maxRow = Math.max(0, Math.ceil(this.inventory.length / 8) - 1);
-                if (this.inventoryScrollRow > maxRow) {
-                    this.inventoryScrollRow = maxRow;
-                }
-
-                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 74}px)`;
             }
 
             scrollInventory(dir) {
                 if (this.activeDialogue) return;
-                const itemsPerRow = 8;
-                const totalRows = Math.ceil(this.inventory.length / itemsPerRow);
-                if (totalRows <= 1) return;
-
-                this.inventoryScrollRow += dir;
-                if (this.inventoryScrollRow < 0) {
-                    this.inventoryScrollRow = totalRows - 1;
-                } else if (this.inventoryScrollRow >= totalRows) {
-                    this.inventoryScrollRow = 0;
+                const viewport = document.querySelector('.inventory-viewport');
+                if (viewport) {
+                    viewport.scrollBy({ top: dir * 74, behavior: 'smooth' });
                 }
-                invEl.style.transform = `translateY(-${this.inventoryScrollRow * 74}px)`;
             }
 
             handleNav(dir) {

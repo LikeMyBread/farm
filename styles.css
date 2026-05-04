@@ -137,18 +137,23 @@ body {
 
 .inventory-viewport {
     display: flex;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     width: 582px;
-    /* Space for 8 items + gaps */
     height: 68px;
-    /* Space for exactly one item row */
+    scrollbar-width: none;
+}
+.inventory-viewport::-webkit-scrollbar {
+    display: none;
+}
+#shop-viewport::-webkit-scrollbar {
+    display: none;
 }
 
 .inventory-bar {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    transition: transform 0.2s ease-in-out;
     width: 582px;
 }
 
