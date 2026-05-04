@@ -307,12 +307,12 @@ CELINA
                     <div>${item.type === 'tool' ? '' : 'x' + item.count}</div>
                 </div>
             `}).join('');
-                
+
                 const maxRow = Math.max(0, Math.ceil(this.inventory.length / 8) - 1);
                 if (this.inventoryScrollRow > maxRow) {
                     this.inventoryScrollRow = maxRow;
                 }
-                
+
                 invEl.style.transform = `translateY(-${this.inventoryScrollRow * 74}px)`;
             }
 
@@ -422,12 +422,12 @@ CELINA
                 if (!this.activeDialogue) return;
                 const node = this.activeDialogue.data.nodes[this.activeDialogue.nodeId];
                 const opt = node.options[idx];
-                
+
                 if (opt.action) {
                     this.executeDialogueAction(opt.action);
                     return;
                 }
-                
+
                 if (opt.next === 'end') {
                     this.closeDialogue();
                 } else {
@@ -440,23 +440,23 @@ CELINA
                 if (action === 'upgradeCan') {
                     const woodIndex = this.inventory.findIndex(i => i.id === 'wood_produce');
                     const stoneIndex = this.inventory.findIndex(i => i.id === 'stone_produce');
-                    
+
                     const woodCount = woodIndex >= 0 ? this.inventory[woodIndex].count : 0;
                     const stoneCount = stoneIndex >= 0 ? this.inventory[stoneIndex].count : 0;
-                    
+
                     if (woodCount >= 10 && stoneCount >= 10) {
                         this.inventory[woodIndex].count -= 10;
                         if (this.inventory[woodIndex].count <= 0) this.inventory.splice(woodIndex, 1);
-                        
+
                         const newStoneIndex = this.inventory.findIndex(i => i.id === 'stone_produce');
                         this.inventory[newStoneIndex].count -= 10;
                         if (this.inventory[newStoneIndex].count <= 0) this.inventory.splice(newStoneIndex, 1);
-                        
+
                         const canIndex = this.inventory.findIndex(i => i.id === 'watering_can');
                         if (canIndex >= 0) {
                             this.inventory[canIndex] = { id: 'upgraded_watering_can', name: 'Can+', type: 'tool', count: 1 };
                         }
-                        
+
                         this.activeDialogue.nodeId = 'upgrade_success';
                     } else {
                         this.activeDialogue.nodeId = 'upgrade_fail';
@@ -913,11 +913,19 @@ CELINA
             }
 
             drawCellContent(cell, x, y, isWet) {
+                const drawShadow = (char, offsetY = 10) => {
+                    ctx.save();
+                    ctx.translate(x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2 + offsetY);
+                    ctx.transform(1, 0, -1, 0.5, 0, 0);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.fillText(char, 0, -offsetY);
+                    ctx.restore();
+                };
+
                 if (cell.obstacle) {
                     ctx.font = '30px Courier New';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillStyle = isWet ? '#fff' : '#000';
 
                     let char = '';
                     if (cell.obstacle === 'rock_large') char = 'O';
@@ -925,19 +933,27 @@ CELINA
                     else if (cell.obstacle === 'log') char = 'I';
                     else if (cell.obstacle === 'stick') char = cell.stickChar;
 
+                    let offsetY = 10;
+                    if (char === '-') offsetY = 2;
+                    else if (char === '_') offsetY = 14;
+
+                    drawShadow(char, offsetY);
+                    ctx.fillStyle = '#000';
                     ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);
                 } else if (cell.crop) {
                     ctx.font = '30px Courier New';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillStyle = isWet ? '#fff' : '#000';
 
                     const data = CROPS[cell.crop];
                     let char = data.seedChar;
+                    let isSeed = true;
                     const progress = cell.growthDays / data.daysToGrow;
-                    if (progress >= 0.5) char = data.midChar;
-                    if (progress >= 1) char = data.endChar;
+                    if (progress >= 0.5) { char = data.midChar; isSeed = false; }
+                    if (progress >= 1) { char = data.endChar; isSeed = false; }
 
+                    if (!isSeed) drawShadow(char);
+                    ctx.fillStyle = '#000';
                     ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);
                 }
             }
@@ -978,9 +994,9 @@ CELINA
                                 ctx.arc(cell.waterAnimation.clickX, cell.waterAnimation.clickY, cell.waterAnimation.radius, 0, Math.PI * 2);
                                 ctx.clip();
 
-                                ctx.fillStyle = '#000';
+                                ctx.fillStyle = '#888';
                                 ctx.fillRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
-                                ctx.strokeStyle = '#fff';
+                                ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
                                 ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
                                 this.drawCellContent(cell, x, y, true);
@@ -994,9 +1010,9 @@ CELINA
                                     cell.waterAnimation = null;
                                 }
                             } else {
-                                ctx.fillStyle = isWet ? '#000' : '#fff';
+                                ctx.fillStyle = isWet ? '#888' : '#fff';
                                 ctx.fillRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
-                                ctx.strokeStyle = isWet ? '#fff' : '#000';
+                                ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
                                 ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
                                 this.drawCellContent(cell, x, y, isWet);
