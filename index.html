@@ -159,11 +159,11 @@ CELINA
         const reportContentEl = document.getElementById('report-content');
 
         const CONFIG = {
-            gridCols: 8,
-            gridRows: 4,
-            cellSize: 60,
-            offsetX: 220,
-            offsetY: 220,
+            gridCols: 5,
+            gridRows: 10,
+            cellSize: 45,
+            offsetX: 250,
+            offsetY: 225,
             energyMax: 100,
             costWater: 5,
             costPlant: 10,
@@ -181,6 +181,15 @@ CELINA
         };
 
         class Game {
+            getIsoCenter(c, r) {
+                const w = CONFIG.cellSize * 2;
+                const h = CONFIG.cellSize;
+                return {
+                    x: CONFIG.offsetX + c * w + (r % 2 === 1 ? w / 2 : 0),
+                    y: CONFIG.offsetY + r * (h / 2)
+                };
+            }
+
             constructor() {
                 this.location = 'farm';
                 this.day = 1;
@@ -572,8 +581,24 @@ CELINA
                         return;
                     }
 
-                    const col = Math.floor((x - CONFIG.offsetX) / CONFIG.cellSize);
-                    const row = Math.floor((y - CONFIG.offsetY) / CONFIG.cellSize);
+                    let clickedCol = -1;
+                    let clickedRow = -1;
+                    for (let r = 0; r < CONFIG.gridRows; r++) {
+                        for (let c = 0; c < CONFIG.gridCols; c++) {
+                            const center = this.getIsoCenter(c, r);
+                            const dxClick = Math.abs(x - center.x);
+                            const dyClick = Math.abs(y - center.y);
+                            if (dxClick / CONFIG.cellSize + dyClick / (CONFIG.cellSize / 2) <= 1) {
+                                clickedCol = c;
+                                clickedRow = r;
+                                break;
+                            }
+                        }
+                        if (clickedCol !== -1) break;
+                    }
+
+                    const col = clickedCol;
+                    const row = clickedRow;
 
                     if (col >= 0 && col < CONFIG.gridCols && row >= 0 && row < CONFIG.gridRows) {
                         const cell = this.grid[row][col];
@@ -912,10 +937,10 @@ CELINA
                 this.updateUI();
             }
 
-            drawCellContent(cell, x, y, isWet) {
+            drawCellContent(cell, centerX, centerY, isWet) {
                 const drawShadow = (char, offsetY = 10) => {
                     ctx.save();
-                    ctx.translate(x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2 + offsetY);
+                    ctx.translate(centerX, centerY + offsetY);
                     ctx.transform(1, 0, -1, 0.5, 0, 0);
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                     ctx.fillText(char, 0, -offsetY);
@@ -939,7 +964,7 @@ CELINA
 
                     drawShadow(char, offsetY);
                     ctx.fillStyle = '#000';
-                    ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);
+                    ctx.fillText(char, centerX, centerY);
                 } else if (cell.crop) {
                     ctx.font = '30px Courier New';
                     ctx.textAlign = 'center';
@@ -954,7 +979,7 @@ CELINA
 
                     if (!isSeed) drawShadow(char);
                     ctx.fillStyle = '#000';
-                    ctx.fillText(char, x + CONFIG.cellSize / 2, y + CONFIG.cellSize / 2);
+                    ctx.fillText(char, centerX, centerY);
                 }
             }
 
@@ -970,52 +995,65 @@ CELINA
                     for (let r = 0; r < CONFIG.gridRows; r++) {
                         for (let c = 0; c < CONFIG.gridCols; c++) {
                             const cell = this.grid[r][c];
-                            const x = CONFIG.offsetX + c * CONFIG.cellSize;
-                            const y = CONFIG.offsetY + r * CONFIG.cellSize;
+                            const center = this.getIsoCenter(c, r);
+                            const p1 = { x: center.x, y: center.y - CONFIG.cellSize / 2 };
+                            const p2 = { x: center.x + CONFIG.cellSize, y: center.y };
+                            const p3 = { x: center.x, y: center.y + CONFIG.cellSize / 2 };
+                            const p4 = { x: center.x - CONFIG.cellSize, y: center.y };
+
+                            const drawTile = () => {
+                                ctx.beginPath();
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.lineTo(p3.x, p3.y);
+                                ctx.lineTo(p4.x, p4.y);
+                                ctx.closePath();
+                                ctx.fill();
+                                ctx.stroke();
+                            };
 
                             const isWet = cell.watered || this.isRaining;
 
                             if (cell.waterAnimation) {
                                 ctx.fillStyle = '#fff';
-                                ctx.fillRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
                                 ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
-                                ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
-                                this.drawCellContent(cell, x, y, false);
+                                drawTile();
+                                this.drawCellContent(cell, center.x, center.y, false);
 
                                 cell.waterAnimation.radius += 3;
 
                                 ctx.save();
                                 ctx.beginPath();
-                                ctx.rect(x, y, CONFIG.cellSize, CONFIG.cellSize);
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.lineTo(p3.x, p3.y);
+                                ctx.lineTo(p4.x, p4.y);
+                                ctx.closePath();
                                 ctx.clip();
 
                                 ctx.beginPath();
-                                ctx.arc(cell.waterAnimation.clickX, cell.waterAnimation.clickY, cell.waterAnimation.radius, 0, Math.PI * 2);
+                                ctx.ellipse(cell.waterAnimation.clickX, cell.waterAnimation.clickY, cell.waterAnimation.radius, cell.waterAnimation.radius / 2, 0, 0, Math.PI * 2);
                                 ctx.clip();
 
                                 ctx.fillStyle = '#888';
-                                ctx.fillRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
                                 ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
-                                ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
-                                this.drawCellContent(cell, x, y, true);
+                                drawTile();
+                                this.drawCellContent(cell, center.x, center.y, true);
                                 ctx.restore();
 
-                                const dx = Math.max(Math.abs(cell.waterAnimation.clickX - x), Math.abs(x + CONFIG.cellSize - cell.waterAnimation.clickX));
-                                const dy = Math.max(Math.abs(cell.waterAnimation.clickY - y), Math.abs(y + CONFIG.cellSize - cell.waterAnimation.clickY));
-                                const maxR = Math.sqrt(dx * dx + dy * dy);
+                                const maxR = CONFIG.cellSize * 1.5;
 
                                 if (cell.waterAnimation.radius >= maxR) {
                                     cell.waterAnimation = null;
                                 }
                             } else {
                                 ctx.fillStyle = isWet ? '#888' : '#fff';
-                                ctx.fillRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
                                 ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
-                                ctx.strokeRect(x, y, CONFIG.cellSize, CONFIG.cellSize);
-                                this.drawCellContent(cell, x, y, isWet);
+                                drawTile();
+                                this.drawCellContent(cell, center.x, center.y, isWet);
                             }
                         }
                     }
