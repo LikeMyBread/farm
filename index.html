@@ -190,6 +190,18 @@ CELINA
                 };
             }
 
+            spawnFlyingItem(cropKey, startX, startY, char) {
+                this.flyingItems.push({
+                    cropKey,
+                    startX,
+                    startY,
+                    targetX: 400,
+                    targetY: 550,
+                    progress: 0,
+                    char
+                });
+            }
+
             constructor() {
                 this.location = 'farm';
                 this.day = 1;
@@ -210,6 +222,7 @@ CELINA
                 this.initGrid();
                 this.messages = ["Welcome to ASCII Farm."];
                 this.isRaining = false;
+                this.flyingItems = [];
 
                 this.mouseX = 0;
                 this.mouseY = 0;
@@ -250,7 +263,7 @@ CELINA
                                 cell.obstacle = 'log';
                             } else {
                                 cell.obstacle = 'stick';
-                                const stickChars = ['/', '\\', '|', '-', '_'];
+                                const stickChars = ['/', '\\', '|', '-'];
                                 cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
                             }
                         }
@@ -630,7 +643,9 @@ CELINA
                             if (!activeItem) return;
                             if (activeItem.id === 'pickaxe' && (cell.obstacle === 'rock_large' || cell.obstacle === 'rock_small')) {
                                 if (this.consumeEnergy(5)) {
-                                    this.addToInventory('stone');
+                                    const char = cell.obstacle === 'rock_large' ? 'O' : 'o';
+                                    const center = this.getIsoCenter(col, row);
+                                    this.spawnFlyingItem('stone', center.x, center.y, char);
                                     this.log('Mined 1 Stone!');
                                     if (cell.obstacle === 'rock_large') {
                                         cell.obstacle = 'rock_small';
@@ -643,11 +658,13 @@ CELINA
                             }
                             if (activeItem.id === 'axe' && (cell.obstacle === 'log' || cell.obstacle === 'stick')) {
                                 if (this.consumeEnergy(5)) {
-                                    this.addToInventory('wood');
+                                    const char = cell.obstacle === 'log' ? 'I' : cell.stickChar;
+                                    const center = this.getIsoCenter(col, row);
+                                    this.spawnFlyingItem('wood', center.x, center.y, char);
                                     this.log('Chopped 1 Wood!');
                                     if (cell.obstacle === 'log') {
                                         cell.obstacle = 'stick';
-                                        const stickChars = ['/', '\\', '|', '-', '_'];
+                                        const stickChars = ['/', '\\', '|', '-'];
                                         cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
                                     } else {
                                         cell.obstacle = null;
@@ -675,7 +692,8 @@ CELINA
                             const cropData = CROPS[cell.crop];
                             if (cell.growthDays >= cropData.daysToGrow) {
                                 if (this.consumeEnergy(CONFIG.costHarvest)) {
-                                    this.addToInventory(cell.crop);
+                                    const center = this.getIsoCenter(col, row);
+                                    this.spawnFlyingItem(cell.crop, center.x, center.y, cropData.endChar);
                                     this.log(`Harvested ${cell.crop}!`);
 
                                     if (cropData.regrows === 'Half') {
@@ -697,8 +715,12 @@ CELINA
 
                         if (activeItem.id === 'watering_can' || activeItem.id === 'upgraded_watering_can') {
                             let cellsToWater = [cell];
-                            if (activeItem.id === 'upgraded_watering_can' && col + 1 < CONFIG.gridCols) {
-                                cellsToWater.push(this.grid[row][col + 1]);
+                            if (activeItem.id === 'upgraded_watering_can') {
+                                let nRow = row - 1;
+                                let nCol = col + (row % 2 === 1 ? 1 : 0);
+                                if (nRow >= 0 && nCol < CONFIG.gridCols) {
+                                    cellsToWater.push(this.grid[nRow][nCol]);
+                                }
                             }
 
                             const unwateredCells = cellsToWater.filter(c => !c.watered);
@@ -960,7 +982,6 @@ CELINA
 
                     let offsetY = 10;
                     if (char === '-') offsetY = 2;
-                    else if (char === '_') offsetY = 14;
 
                     drawShadow(char, offsetY);
                     ctx.fillStyle = '#000';
@@ -1043,7 +1064,11 @@ CELINA
                                 this.drawCellContent(cell, center.x, center.y, true);
                                 ctx.restore();
 
-                                const maxR = CONFIG.cellSize * 1.5;
+                                let maxR = 0;
+                                for (const p of [p1, p2, p3, p4]) {
+                                    const rNeeded = Math.sqrt(Math.pow(p.x - cell.waterAnimation.clickX, 2) + 4 * Math.pow(p.y - cell.waterAnimation.clickY, 2));
+                                    if (rNeeded > maxR) maxR = rNeeded;
+                                }
 
                                 if (cell.waterAnimation.radius >= maxR) {
                                     cell.waterAnimation = null;
@@ -1086,6 +1111,41 @@ CELINA
                     for (let i = 0; i < 30; i++) {
                         ctx.fillText("|", Math.random() * 800, Math.random() * 600);
                     }
+                }
+
+                for (let i = this.flyingItems.length - 1; i >= 0; i--) {
+                    const item = this.flyingItems[i];
+                    item.progress += 0.04;
+                    if (item.progress >= 1) {
+                        this.addToInventory(item.cropKey);
+                        this.flyingItems.splice(i, 1);
+                        this.updateUI();
+                        continue;
+                    }
+
+                    const cx = item.startX + (item.targetX - item.startX) * item.progress;
+                    const cyBase = item.startY + (item.targetY - item.startY) * item.progress;
+                    const altitude = 4 * 150 * item.progress * (1 - item.progress);
+
+                    const shadowX = cx + altitude * 0.5;
+                    const shadowY = cyBase + 10;
+
+                    ctx.save();
+                    ctx.translate(shadowX, shadowY);
+                    ctx.transform(1, 0, -1, 0.5, 0, 0);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.fillText(item.char, 0, -10);
+                    ctx.restore();
+
+                    const itemY = cyBase - altitude;
+                    ctx.font = '30px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(item.char, cx, itemY);
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(item.char, cx, itemY);
                 }
             }
 
