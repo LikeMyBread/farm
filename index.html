@@ -163,8 +163,8 @@ CELINA
             gridCols: 5,
             gridRows: 10,
             cellSize: 45,
-            offsetX: 250,
-            offsetY: 225,
+            offsetX: 285,
+            offsetY: 235,
             energyMax: 100,
             costWater: 5,
             costPlant: 10,
@@ -220,7 +220,10 @@ CELINA
                 this.selectedItemIndex = 1;
                 this.inventoryScrollRow = 0;
                 this.grid = [];
+                this.forestGrid = [];
                 this.initGrid();
+                this.initForestGrid();
+                this.forestFlooded = false;
                 this.messages = ["Welcome to ASCII Farm."];
                 this.isRaining = false;
                 this.flyingItems = [];
@@ -274,6 +277,77 @@ CELINA
                 }
             }
 
+            initForestGrid() {
+                const riverPath = [
+                    { r: 0, c: 2 }, { r: 1, c: 1 }, { r: 2, c: 1 }, { r: 3, c: 1 },
+                    { r: 4, c: 2 }, { r: 5, c: 2 }, { r: 6, c: 2 }, { r: 7, c: 1 },
+                    { r: 8, c: 2 }, { r: 9, c: 2 }
+                ];
+
+                for (let r = 0; r < CONFIG.gridRows; r++) {
+                    this.forestGrid[r] = [];
+                    for (let c = 0; c < CONFIG.gridCols; c++) {
+                        const riverIndex = riverPath.findIndex(p => p.r === r && p.c === c);
+                        if (riverIndex !== -1) {
+                            this.forestGrid[r][c] = { isRiver: true, riverIndex: riverIndex };
+                            continue;
+                        }
+
+                        const cell = {
+                            watered: false,
+                            crop: null,
+                            growthDays: 0,
+                            obstacle: null,
+                            stickChar: '',
+                            isRiverBorder: false
+                        };
+
+                        const rand = Math.random();
+                        if (rand < 0.833) {
+                            cell.obstacle = Math.random() < 0.5 ? 'stick' : 'log';
+                            if (cell.obstacle === 'stick') {
+                                const stickChars = ['/', '\\', '|', '-'];
+                                cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
+                            }
+                        } else {
+                            cell.obstacle = Math.random() < 0.5 ? 'rock_small' : 'rock_large';
+                        }
+
+                        this.forestGrid[r][c] = cell;
+                    }
+                }
+
+                for (let r = 0; r < CONFIG.gridRows; r++) {
+                    for (let c = 0; c < CONFIG.gridCols; c++) {
+                        let cell = this.forestGrid[r][c];
+                        if (cell.isRiver) continue;
+
+                        let isBorder = false;
+                        let minRiverIndex = 999;
+
+                        const neighbors = r % 2 === 0
+                            ? [{ dr: -1, dc: -1 }, { dr: -1, dc: 0 }, { dr: 1, dc: -1 }, { dr: 1, dc: 0 }]
+                            : [{ dr: -1, dc: 0 }, { dr: -1, dc: 1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }];
+
+                        for (let n of neighbors) {
+                            let nr = r + n.dr;
+                            let nc = c + n.dc;
+                            if (nr >= 0 && nr < CONFIG.gridRows && nc >= 0 && nc < CONFIG.gridCols) {
+                                if (this.forestGrid[nr][nc].isRiver) {
+                                    isBorder = true;
+                                    minRiverIndex = Math.min(minRiverIndex, this.forestGrid[nr][nc].riverIndex);
+                                }
+                            }
+                        }
+                        if (isBorder) {
+                            cell.isRiverBorder = true;
+                            cell.watered = true;
+                            cell.riverIndex = minRiverIndex;
+                        }
+                    }
+                }
+            }
+
             log(msg) {
                 this.messages.push(msg);
                 if (this.messages.length > 15) this.messages.shift();
@@ -305,8 +379,8 @@ CELINA
                 const navD = document.getElementById('nav-down');
                 const navU = document.getElementById('nav-up');
 
-                navL.style.display = (this.location === 'town') ? 'flex' : 'none';
-                navR.style.display = (this.location === 'farm') ? 'flex' : 'none';
+                navL.style.display = (this.location === 'town' || this.location === 'farm') ? 'flex' : 'none';
+                navR.style.display = (this.location === 'farm' || this.location === 'forest') ? 'flex' : 'none';
                 navD.style.display = (this.location === 'house' || this.location === 'store') ? 'flex' : 'none';
                 navU.style.display = 'none';
 
@@ -344,6 +418,8 @@ CELINA
             handleNav(dir) {
                 if (this.activeDialogue) return;
                 if (this.location === 'farm' && dir === 'right') this.changeLocation('town');
+                else if (this.location === 'farm' && dir === 'left') this.changeLocation('forest');
+                else if (this.location === 'forest' && dir === 'right') this.changeLocation('farm');
                 else if (this.location === 'town' && dir === 'left') this.changeLocation('farm');
                 else if (this.location === 'house' && dir === 'down') this.changeLocation('farm');
                 else if (this.location === 'store' && dir === 'down') this.changeLocation('town');
@@ -572,8 +648,8 @@ CELINA
 
                 const activeItem = this.inventory[this.selectedItemIndex];
 
-                if (this.location === 'farm') {
-                    if (this.isHovering(this.farmHouseRect)) {
+                if (this.location === 'farm' || this.location === 'forest') {
+                    if (this.location === 'farm' && this.isHovering(this.farmHouseRect)) {
                         if (activeItem && activeItem.id === 'look') {
                             this.log("Your farm house. It looks cozy inside.");
                             return;
@@ -602,7 +678,15 @@ CELINA
                     const row = clickedRow;
 
                     if (col >= 0 && col < CONFIG.gridCols && row >= 0 && row < CONFIG.gridRows) {
-                        const cell = this.grid[row][col];
+                        const gridToUse = this.location === 'forest' ? this.forestGrid : this.grid;
+                        const cell = gridToUse[row][col];
+
+                        if (this.location === 'forest' && (cell.isRiver || (this.forestFlooded && cell.isRiverBorder))) {
+                            if (activeItem && activeItem.id === 'look') {
+                                this.log("The rushing river water.");
+                            }
+                            return;
+                        }
 
                         if (activeItem && activeItem.id === 'look') {
                             if (cell.obstacle) {
@@ -707,7 +791,7 @@ CELINA
                                 let nRow = row - 1;
                                 let nCol = col + (row % 2 === 1 ? 1 : 0);
                                 if (nRow >= 0 && nCol < CONFIG.gridCols) {
-                                    cellsToWater.push(this.grid[nRow][nCol]);
+                                    cellsToWater.push(gridToUse[nRow][nCol]);
                                 }
                             }
 
@@ -772,7 +856,14 @@ CELINA
                 let events = [];
 
                 this.isRaining = Math.random() < 0.2;
-                if (this.isRaining) events.push("It is raining today! No need to water.");
+                this.forestFlooded = false;
+                if (this.isRaining) {
+                    events.push("It is raining today! No need to water.");
+                    if (Math.random() < 0.1) {
+                        this.forestFlooded = true;
+                        events.push("The forest river flooded its banks!");
+                    }
+                }
 
                 if (Math.random() < 0.05) {
                     const crops = [];
@@ -799,33 +890,61 @@ CELINA
 
                 const totalSquares = CONFIG.gridRows * CONFIG.gridCols;
 
-                for (let r = 0; r < CONFIG.gridRows; r++) {
-                    for (let c = 0; c < CONFIG.gridCols; c++) {
-                        const cell = this.grid[r][c];
-                        if (cell.crop && cell.watered) {
-                            cell.growthDays++;
-                        }
+                const processGrid = (grid, isForest) => {
+                    for (let r = 0; r < CONFIG.gridRows; r++) {
+                        for (let c = 0; c < CONFIG.gridCols; c++) {
+                            const cell = grid[r][c];
+                            if (isForest && cell.isRiver) continue;
 
-                        if (!cell.crop && !cell.obstacle) {
-                            if (Math.random() < 1 / totalSquares) {
-                                const rand = Math.random();
-                                if (rand < 0.25) {
-                                    cell.obstacle = 'rock_large';
-                                } else if (rand < 0.5) {
-                                    cell.obstacle = 'rock_small';
-                                } else if (rand < 0.75) {
-                                    cell.obstacle = 'log';
-                                } else {
-                                    cell.obstacle = 'stick';
-                                    const stickChars = ['/', '\\', '|', '-', '_'];
-                                    cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
+                            if (cell.crop && cell.watered) {
+                                cell.growthDays++;
+                            }
+
+                            if (isForest && this.forestFlooded && cell.isRiverBorder) {
+                                if (cell.crop) cell.crop = null;
+                                if (cell.obstacle === 'stick' || cell.obstacle === 'log') cell.obstacle = null;
+                            }
+
+                            if (!cell.crop && !cell.obstacle) {
+                                const spawnChance = isForest ? 4 / totalSquares : 1 / totalSquares;
+                                if (Math.random() < spawnChance) {
+                                    const rand = Math.random();
+                                    if (isForest) {
+                                        if (rand < 0.833) {
+                                            cell.obstacle = Math.random() < 0.5 ? 'stick' : 'log';
+                                            if (cell.obstacle === 'stick') {
+                                                const stickChars = ['/', '\\', '|', '-'];
+                                                cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
+                                            }
+                                        } else {
+                                            cell.obstacle = Math.random() < 0.5 ? 'rock_small' : 'rock_large';
+                                        }
+                                    } else {
+                                        if (rand < 0.25) {
+                                            cell.obstacle = 'rock_large';
+                                        } else if (rand < 0.5) {
+                                            cell.obstacle = 'rock_small';
+                                        } else if (rand < 0.75) {
+                                            cell.obstacle = 'log';
+                                        } else {
+                                            cell.obstacle = 'stick';
+                                            const stickChars = ['/', '\\', '|', '-', '_'];
+                                            cell.stickChar = stickChars[Math.floor(Math.random() * stickChars.length)];
+                                        }
+                                    }
                                 }
                             }
-                        }
 
-                        cell.watered = this.isRaining;
+                            if (isForest && cell.isRiverBorder) {
+                                cell.watered = true;
+                            } else {
+                                cell.watered = this.isRaining;
+                            }
+                        }
                     }
-                }
+                };
+                processGrid(this.grid, false);
+                processGrid(this.forestGrid, true);
 
                 this.showReport(events);
                 this.updateUI();
@@ -996,15 +1115,31 @@ CELINA
                 ctx.fillStyle = '#000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                if (this.location === 'farm') {
-                    if (this.isHovering(this.farmHouseRect)) {
+                if (this.location === 'farm' || this.location === 'forest') {
+                    if (this.location === 'farm' && this.isHovering(this.farmHouseRect)) {
                         this.drawHoverOutline(this.farmHouseRect);
                     }
 
+                    const gridToDraw = this.location === 'forest' ? this.forestGrid : this.grid;
+
                     for (let r = 0; r < CONFIG.gridRows; r++) {
                         for (let c = 0; c < CONFIG.gridCols; c++) {
-                            const cell = this.grid[r][c];
+                            const cell = gridToDraw[r][c];
                             const center = this.getIsoCenter(c, r);
+
+                            if (this.location === 'forest' && (cell.isRiver || (this.forestFlooded && cell.isRiverBorder))) {
+                                ctx.font = '30px Courier New';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillStyle = '#555';
+                                const tick = Math.floor(Date.now() / 200);
+                                const offset = cell.riverIndex || 0;
+                                const state = ((tick - offset) % 4 + 4) % 4;
+                                const chars = ['~', '-', '-', '-'];
+                                const animChar = chars[state];
+                                ctx.fillText(animChar, center.x, center.y);
+                                continue;
+                            }
                             const p1 = { x: center.x, y: center.y - CONFIG.cellSize / 2 };
                             const p2 = { x: center.x + CONFIG.cellSize, y: center.y };
                             const p3 = { x: center.x, y: center.y + CONFIG.cellSize / 2 };
@@ -1094,7 +1229,7 @@ CELINA
                     }
                 }
 
-                if (this.isRaining && (this.location === 'farm' || this.location === 'town')) {
+                if (this.isRaining && (this.location === 'farm' || this.location === 'town' || this.location === 'forest')) {
                     ctx.fillStyle = '#fff';
                     for (let i = 0; i < 30; i++) {
                         ctx.fillText("|", Math.random() * 800, Math.random() * 600);
