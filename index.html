@@ -14,6 +14,12 @@
         <canvas id="gameCanvas" width="800" height="600"></canvas>
 
         <div id="ui-overlay">
+            <div id="start-screen" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto;">
+                <h1 style="font-size: 48px; margin-bottom: 40px; letter-spacing: 4px;">ASCII FARM</h1>
+                <div class="start-btn" onclick="game.startGame(false)">NEW GAME</div>
+                <div id="continue-btn" class="start-btn" onclick="game.startGame(true)" style="display: none;">CONTINUE</div>
+            </div>
+
             <div class="header">
                 <span style="width: 150px; text-align: left;">$<span id="header-cash-display">0</span></span>
                 <span id="location-name" style="flex: 1; text-align: center;">THE FARM</span>
@@ -204,6 +210,37 @@ CELINA
             }
 
             constructor() {
+                this.mouseX = 0;
+                this.mouseY = 0;
+
+                this.farmHouseRect = { x: 375, y: 65, w: 130, h: 140 };
+                this.townStoreRect = { x: 300, y: 195, w: 200, h: 160 };
+                this.bedRect = { x: 290, y: 270, w: 220, h: 150 };
+                this.celinaRect = { x: 550, y: 230, w: 60, h: 80 };
+                this.activeDialogue = null;
+                
+                this.gameState = 'START_SCREEN';
+
+                canvas.addEventListener('mousedown', (e) => this.handleClick(e));
+                canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+
+                this.initDefaultState();
+
+                const saved = localStorage.getItem('asciiFarmSave');
+                const startScreen = document.getElementById('start-screen');
+                const continueBtn = document.getElementById('continue-btn');
+                
+                startScreen.style.display = 'flex';
+                if (saved) {
+                    continueBtn.style.display = 'block';
+                }
+
+                this.updateUI();
+                this.gameLoop();
+            }
+
+            initDefaultState() {
                 this.location = 'farm';
                 this.day = 1;
                 this.cash = 10;
@@ -227,22 +264,64 @@ CELINA
                 this.messages = ["Welcome to ASCII Farm."];
                 this.isRaining = false;
                 this.flyingItems = [];
+            }
 
-                this.mouseX = 0;
-                this.mouseY = 0;
+            startGame(loadSave) {
+                if (loadSave) {
+                    const saved = localStorage.getItem('asciiFarmSave');
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            this.location = data.location;
+                            this.day = data.day;
+                            this.cash = data.cash;
+                            this.energy = data.energy;
+                            this.inventory = data.inventory;
+                            this.grid = data.grid;
+                            this.forestGrid = data.forestGrid;
+                            this.isRaining = data.isRaining;
+                            this.forestFlooded = data.forestFlooded;
+                            this.messages = data.messages || ["Welcome back to ASCII Farm."];
+                            this.selectedItemIndex = 1;
+                            this.inventoryScrollRow = 0;
+                            this.flyingItems = [];
+                        } catch(e) {
+                            console.error("Save file corrupted, starting new game", e);
+                            this.initDefaultState();
+                        }
+                    } else {
+                        this.initDefaultState();
+                    }
+                } else {
+                    localStorage.removeItem('asciiFarmSave');
+                    this.initDefaultState();
+                }
 
-                this.farmHouseRect = { x: 375, y: 65, w: 130, h: 140 };
-                this.townStoreRect = { x: 300, y: 195, w: 200, h: 160 };
-                this.bedRect = { x: 290, y: 270, w: 220, h: 150 };
-                this.celinaRect = { x: 550, y: 230, w: 60, h: 80 };
-                this.activeDialogue = null;
-
-                canvas.addEventListener('mousedown', (e) => this.handleClick(e));
-                canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-                window.addEventListener('keydown', (e) => this.handleKeyDown(e));
-
+                this.gameState = 'PLAYING';
+                document.getElementById('start-screen').style.display = 'none';
                 this.updateUI();
-                this.gameLoop();
+                this.log(loadSave ? "Save loaded." : "New game started.");
+            }
+
+            saveGame() {
+                if (this.gameState !== 'PLAYING') return;
+
+                if (this._saveTimeout) clearTimeout(this._saveTimeout);
+                this._saveTimeout = setTimeout(() => {
+                    const state = {
+                        location: this.location,
+                        day: this.day,
+                        cash: this.cash,
+                        energy: this.energy,
+                        inventory: this.inventory,
+                        grid: this.grid,
+                        forestGrid: this.forestGrid,
+                        isRaining: this.isRaining,
+                        forestFlooded: this.forestFlooded,
+                        messages: this.messages
+                    };
+                    localStorage.setItem('asciiFarmSave', JSON.stringify(state));
+                }, 1);
             }
 
             initGrid() {
@@ -352,6 +431,7 @@ CELINA
                 this.messages.push(msg);
                 if (this.messages.length > 15) this.messages.shift();
                 logEl.innerHTML = this.messages.slice().reverse().map(m => `<div>> ${m}</div>`).join('');
+                this.saveGame();
             }
 
             consumeEnergy(amount) {
@@ -416,6 +496,7 @@ CELINA
             }
 
             handleNav(dir) {
+                if (this.gameState !== 'PLAYING') return;
                 if (this.activeDialogue) return;
                 if (this.location === 'farm' && dir === 'right') this.changeLocation('town');
                 else if (this.location === 'farm' && dir === 'left') this.changeLocation('forest');
@@ -557,6 +638,7 @@ CELINA
             }
 
             selectItem(index) {
+                if (this.gameState !== 'PLAYING') return;
                 if (this.activeDialogue) return;
                 const item = this.inventory[index];
                 if (item && item.type === 'harvested') {
@@ -591,6 +673,7 @@ CELINA
             changeLocation(loc) {
                 this.location = loc;
                 this.updateUI();
+                this.saveGame();
             }
 
             handleMouseMove(e) {
@@ -615,6 +698,7 @@ CELINA
             }
 
             handleKeyDown(e) {
+                if (this.gameState !== 'PLAYING') return;
                 if (this.activeDialogue) return;
                 if (reportEl.style.display === 'block') return;
 
@@ -638,6 +722,7 @@ CELINA
             }
 
             handleClick(e) {
+                if (this.gameState !== 'PLAYING') return;
                 if (this.activeDialogue) return;
 
                 const rect = canvas.getBoundingClientRect();
@@ -963,6 +1048,7 @@ CELINA
 
             closeReport() {
                 reportEl.style.display = 'none';
+                this.saveGame();
             }
 
             addToInventory(cropKey) {
