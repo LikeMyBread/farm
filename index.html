@@ -1051,23 +1051,32 @@ CELINA
 
                 if (Math.random() < 0.05) {
                     const crops = [];
-                    for (let r = 0; r < CONFIG.gridRows; r++) {
-                        for (let c = 0; c < CONFIG.gridCols; c++) {
-                            if (this.grid[r][c].crop) crops.push(this.grid[r][c]);
+                    const gatherCrops = (grid) => {
+                        for (let r = 0; r < CONFIG.gridRows; r++) {
+                            for (let c = 0; c < CONFIG.gridCols; c++) {
+                                if (grid[r][c].crop) crops.push(grid[r][c]);
+                            }
                         }
-                    }
+                    };
+                    gatherCrops(this.grid);
+                    gatherCrops(this.forestGrid);
+
                     if (crops.length > 0) {
                         const targetCropType = crops[Math.floor(Math.random() * crops.length)].crop;
                         const cropName = CROPS[targetCropType].name.toLowerCase();
 
-                        for (let r = 0; r < CONFIG.gridRows; r++) {
-                            for (let c = 0; c < CONFIG.gridCols; c++) {
-                                if (this.grid[r][c].crop === targetCropType) {
-                                    this.grid[r][c].crop = null;
-                                    this.grid[r][c].growthDays = 0;
+                        const applyBlight = (grid) => {
+                            for (let r = 0; r < CONFIG.gridRows; r++) {
+                                for (let c = 0; c < CONFIG.gridCols; c++) {
+                                    if (grid[r][c].crop === targetCropType) {
+                                        grid[r][c].crop = null;
+                                        grid[r][c].growthDays = 0;
+                                    }
                                 }
                             }
-                        }
+                        };
+                        applyBlight(this.grid);
+                        applyBlight(this.forestGrid);
                         events.push(`A sudden ${cropName} blight has withered your crops...`);
                     }
                 }
