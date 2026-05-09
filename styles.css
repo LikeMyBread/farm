@@ -73,11 +73,41 @@ body {
     background: #000;
     overflow: hidden;
     z-index: 20;
+    transition: bottom 0.3s ease-in-out;
+}
+
+.energy-container.lifted {
+    bottom: 120px;
+}
+
+.health-container {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 16px;
+    border: 2px solid #fff;
+    background: #000;
+    overflow: hidden;
+    z-index: 19;
+}
+
+.health-container.hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #energy-bar {
     height: 100%;
     background-color: #fff;
+    width: 100%;
+    transition: width 0.3s;
+}
+
+#health-bar {
+    height: 100%;
+    background-color: darkred;
     width: 100%;
     transition: width 0.3s;
 }
@@ -103,6 +133,10 @@ body {
 .tick.major {
     height: 16px;
     width: 2px;
+}
+
+.health-container .tick {
+    mix-blend-mode: normal;
 }
 
 .inventory-wrapper {

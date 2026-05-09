@@ -23,6 +23,13 @@
                 </div>
             </div>
 
+            <div id="game-over-screen"
+                style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto;">
+                <h1 style="font-size: 48px; margin-bottom: 20px; letter-spacing: 4px; color: darkred;">GAME OVER</h1>
+                <p style="margin-bottom: 40px; font-size: 18px;">You have perished on the farm.</p>
+                <div class="start-btn" onclick="game.startGame(false)">RESTART</div>
+            </div>
+
             <div class="header">
                 <span style="width: 150px; text-align: left;">$<span id="header-cash-display">0</span></span>
                 <span id="location-name" style="flex: 1; text-align: center;">THE FARM</span>
@@ -61,7 +68,7 @@
                 </div>
             </div>
 
-            <div class="energy-container">
+            <div class="energy-container" id="energy-container">
                 <div id="energy-bar"></div>
                 <!-- Tick marks for the thermometer effect -->
                 <div class="energy-ticks">
@@ -80,6 +87,27 @@
                 <div
                     style="position: absolute; top:0; width:100%; text-align:center; font-size:14px; color:#FFF; mix-blend-mode: difference; font-weight: bold; line-height: 16px;">
                     ENERGY</div>
+            </div>
+
+            <div class="health-container hidden" id="health-container">
+                <div id="health-bar"></div>
+                <!-- Tick marks for the thermometer effect -->
+                <div class="energy-ticks">
+                    <div class="tick major"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick major"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick"></div>
+                    <div class="tick major"></div>
+                </div>
+                <div
+                    style="position: absolute; top:0; width:100%; text-align:center; font-size:14px; color:#FFF; font-weight: bold; line-height: 16px;">
+                    HEALTH</div>
             </div>
 
             <pre id="ascii-farm-house"
@@ -264,6 +292,7 @@ CELINA
                 this.time = 360; // 06:00
                 this.cash = 10;
                 this.energy = CONFIG.energyMax;
+                this.health = CONFIG.energyMax;
                 this.inventory = [
                     { id: 'look', name: 'Look', type: 'tool', count: 1 },
                     { id: 'watering_can', name: 'Can', type: 'tool', count: 1 },
@@ -271,7 +300,8 @@ CELINA
                     { id: 'axe', name: 'Axe', type: 'tool', count: 1 },
                     { id: 'carrot_seed', name: 'Carrot', type: 'seed', crop: 'carrot', count: 5 },
                     { id: 'wheat_seed', name: 'Wheat', type: 'seed', crop: 'wheat', count: 3 },
-                    { id: 'kale_seed', name: 'Kale', type: 'seed', crop: 'kale', count: 1 }
+                    { id: 'kale_seed', name: 'Kale', type: 'seed', crop: 'kale', count: 1 },
+                    { id: 'potato_produce', name: 'POTATO', type: 'harvested', crop: 'potato', count: 5 }
                 ];
                 this.selectedItemIndex = 1;
                 this.inventoryScrollRow = 0;
@@ -296,6 +326,7 @@ CELINA
                             this.time = data.time !== undefined ? data.time : 360;
                             this.cash = data.cash;
                             this.energy = data.energy;
+                            this.health = data.health !== undefined ? data.health : CONFIG.energyMax;
                             this.inventory = data.inventory;
                             this.grid = data.grid;
                             this.forestGrid = data.forestGrid;
@@ -319,6 +350,7 @@ CELINA
 
                 this.gameState = 'PLAYING';
                 document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('game-over-screen').style.display = 'none';
                 this.updateUI();
                 this.log(loadSave ? "Save loaded." : "New game started.", true);
             }
@@ -349,6 +381,7 @@ CELINA
                         time: this.time,
                         cash: this.cash,
                         energy: this.energy,
+                        health: this.health,
                         inventory: this.inventory,
                         grid: this.grid,
                         forestGrid: this.forestGrid,
@@ -470,13 +503,31 @@ CELINA
                 this.saveGame(skipTimeAdvance);
             }
 
+            triggerGameOver() {
+                this.gameState = 'GAME_OVER';
+                document.getElementById('game-over-screen').style.display = 'flex';
+                this.updateUI();
+            }
+
             consumeEnergy(amount) {
                 if (this.energy >= amount) {
                     this.energy -= amount;
                     this.updateUI();
                     return true;
                 }
-                this.log("Too tired! Sleep first.", true);
+                const remaining = amount - this.energy;
+                if (this.health + this.energy >= amount) {
+                    this.energy = 0;
+                    this.health -= remaining;
+                    this.log("You push yourself, expending health!", true);
+                    if (this.health <= 0) {
+                        this.triggerGameOver();
+                        return false;
+                    }
+                    this.updateUI();
+                    return true;
+                }
+                this.log("Too exhausted! Need sleep or food.", true);
                 return false;
             }
 
@@ -539,6 +590,21 @@ CELINA
                 if (headerCashSpan) headerCashSpan.innerText = this.cash;
 
                 energyBarEl.style.width = `${(this.energy / CONFIG.energyMax) * 100}%`;
+
+                const healthBarEl = document.getElementById('health-bar');
+                if (healthBarEl) healthBarEl.style.width = `${(this.health / CONFIG.energyMax) * 100}%`;
+                
+                const healthContainerEl = document.getElementById('health-container');
+                const energyContainerEl = document.getElementById('energy-container');
+                if (healthContainerEl) {
+                    if (this.health >= CONFIG.energyMax) {
+                        healthContainerEl.classList.add('hidden');
+                        if (energyContainerEl) energyContainerEl.classList.remove('lifted');
+                    } else {
+                        healthContainerEl.classList.remove('hidden');
+                        if (energyContainerEl) energyContainerEl.classList.add('lifted');
+                    }
+                }
 
                 const navL = document.getElementById('nav-left');
                 const navR = document.getElementById('nav-right');
@@ -730,8 +796,20 @@ CELINA
                 if (item && item.type === 'harvested') {
                     const cropDef = CROPS[item.crop];
                     if (cropDef && cropDef.restoreEnergy) {
-                        if (this.energy < CONFIG.energyMax) {
-                            this.energy = Math.min(CONFIG.energyMax, this.energy + cropDef.restoreEnergy);
+                        if (this.health < CONFIG.energyMax || this.energy < CONFIG.energyMax) {
+                            let restore = cropDef.restoreEnergy;
+                            if (this.health < CONFIG.energyMax) {
+                                const healthMissing = CONFIG.energyMax - this.health;
+                                const healAmount = Math.min(healthMissing, restore);
+                                this.health += healAmount;
+                                restore -= healAmount;
+                            }
+                            if (restore > 0 && this.energy < CONFIG.energyMax) {
+                                const energyMissing = CONFIG.energyMax - this.energy;
+                                const energyAmount = Math.min(energyMissing, restore);
+                                this.energy += energyAmount;
+                            }
+
                             item.count--;
                             if (item.count <= 0) {
                                 this.inventory.splice(index, 1);
@@ -739,11 +817,11 @@ CELINA
                                     this.selectedItemIndex = Math.max(0, this.inventory.length - 1);
                                 }
                             }
-                            this.log(`Ate a ${cropDef.name}! (+${cropDef.restoreEnergy} energy)`, true);
+                            this.log(`Ate a ${cropDef.name}! (+${cropDef.restoreEnergy} stats)`, true);
                             this.updateUI();
                             return;
                         } else {
-                            this.log("Energy is already full!", true);
+                            this.log("Energy and Health are full!", true);
                         }
                     }
                 }
@@ -1036,6 +1114,12 @@ CELINA
                 this.day++;
                 this.time = 360; // 06:00
                 this.energy = Math.max(0, CONFIG.energyMax - penalty);
+
+                this.health -= Math.floor(CONFIG.energyMax * 0.2);
+                if (this.health <= 0) {
+                    this.triggerGameOver();
+                    return;
+                }
 
                 let events = [];
 
