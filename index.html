@@ -23,11 +23,20 @@
                 </div>
             </div>
 
+            <div id="confirm-modal"
+                style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; background: #000; border: 4px solid #fff; z-index: 2000; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; padding: 30px; text-align: center; box-sizing: border-box;">
+                <p style="margin-top: 0; margin-bottom: 30px; font-size: 18px; line-height: 24px;">Are you sure you want to start a new game?<br><br>Your existing save file will be deleted.</p>
+                <div style="display: flex; gap: 20px;">
+                    <div class="start-btn" style="margin-bottom: 0;" onclick="game.startGame(false, true)">YES</div>
+                    <div class="start-btn" style="margin-bottom: 0;" onclick="document.getElementById('confirm-modal').style.display='none'">NO</div>
+                </div>
+            </div>
+
             <div id="game-over-screen"
                 style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto;">
                 <h1 style="font-size: 48px; margin-bottom: 20px; letter-spacing: 4px; color: darkred;">GAME OVER</h1>
-                <p style="margin-bottom: 40px; font-size: 18px;">You have perished on the farm.</p>
-                <div class="start-btn" onclick="game.startGame(false)">RESTART</div>
+                <p id="game-over-reason" style="margin-bottom: 40px; font-size: 18px;">You have perished on the farm.</p>
+                <div class="start-btn" onclick="game.startGame(false, true)">RESTART</div>
             </div>
 
             <div class="header">
@@ -315,7 +324,7 @@ CELINA
                 this.flyingItems = [];
             }
 
-            startGame(loadSave) {
+            startGame(loadSave, skipConfirm = false) {
                 if (loadSave) {
                     const saved = localStorage.getItem('asciiFarmSave');
                     if (saved) {
@@ -344,6 +353,10 @@ CELINA
                         this.initDefaultState();
                     }
                 } else {
+                    if (!skipConfirm && localStorage.getItem('asciiFarmSave')) {
+                        document.getElementById('confirm-modal').style.display = 'flex';
+                        return;
+                    }
                     localStorage.removeItem('asciiFarmSave');
                     this.initDefaultState();
                 }
@@ -351,6 +364,7 @@ CELINA
                 this.gameState = 'PLAYING';
                 document.getElementById('start-screen').style.display = 'none';
                 document.getElementById('game-over-screen').style.display = 'none';
+                document.getElementById('confirm-modal').style.display = 'none';
                 this.updateUI();
                 this.log(loadSave ? "Save loaded." : "New game started.", true);
             }
@@ -503,9 +517,26 @@ CELINA
                 this.saveGame(skipTimeAdvance);
             }
 
-            triggerGameOver() {
+            triggerGameOver(reason) {
                 this.gameState = 'GAME_OVER';
-                document.getElementById('game-over-screen').style.display = 'flex';
+                const gameOverScreen = document.getElementById('game-over-screen');
+                gameOverScreen.style.display = 'flex';
+                
+                let place = "on the farm";
+                if (this.location === 'forest') place = "in the forest";
+                else if (this.location === 'town' || this.location === 'store') place = "in town";
+                else if (this.location === 'house') place = "in your house";
+
+                const msg = document.getElementById('game-over-reason');
+                if (msg) {
+                    if (reason === 'hunger') {
+                        msg.innerText = `You died of hunger ${place}.`;
+                    } else if (reason === 'exhaustion') {
+                        msg.innerText = `You died of exhaustion ${place}.`;
+                    } else {
+                        msg.innerText = `You have perished ${place}.`;
+                    }
+                }
                 this.updateUI();
             }
 
@@ -521,7 +552,7 @@ CELINA
                     this.health -= remaining;
                     this.log("You push yourself, expending health!", true);
                     if (this.health <= 0) {
-                        this.triggerGameOver();
+                        this.triggerGameOver('exhaustion');
                         return false;
                     }
                     this.updateUI();
@@ -1117,7 +1148,7 @@ CELINA
 
                 this.health -= Math.floor(CONFIG.energyMax * 0.2);
                 if (this.health <= 0) {
-                    this.triggerGameOver();
+                    this.triggerGameOver('hunger');
                     return;
                 }
 
@@ -1360,16 +1391,17 @@ CELINA
                     ctx.textBaseline = 'middle';
 
                     let char = '';
-                    if (cell.obstacle === 'rock_large') char = 'O';
-                    else if (cell.obstacle === 'rock_small') char = 'o';
-                    else if (cell.obstacle === 'log') char = 'I';
-                    else if (cell.obstacle === 'stick') char = cell.stickChar;
+                    let color = '#000';
+                    if (cell.obstacle === 'rock_large') { char = 'O'; color = '#808080'; }
+                    else if (cell.obstacle === 'rock_small') { char = 'o'; color = '#808080'; }
+                    else if (cell.obstacle === 'log') { char = 'I'; color = '#8B4513'; }
+                    else if (cell.obstacle === 'stick') { char = cell.stickChar; color = '#8B4513'; }
 
                     let offsetY = 10;
                     if (char === '-') offsetY = 2;
 
                     drawShadow(char, offsetY);
-                    ctx.fillStyle = '#000';
+                    ctx.fillStyle = color;
                     ctx.fillText(char, centerX, centerY);
                 } else if (cell.crop) {
                     ctx.font = '30px Courier New';
@@ -1380,11 +1412,28 @@ CELINA
                     let char = data.seedChar;
                     let isSeed = true;
                     const progress = cell.growthDays / data.daysToGrow;
+                    let isFull = progress >= 1;
+                    
                     if (progress >= 0.5) { char = data.midChar; isSeed = false; }
-                    if (progress >= 1) { char = data.endChar; isSeed = false; }
+                    if (isFull) { char = data.endChar; isSeed = false; }
+
+                    let color = '#000';
+                    if (!isFull) {
+                        if (cell.crop === 'carrot') color = '#32CD32';
+                        else if (cell.crop === 'wheat') color = '#9ACD32';
+                        else if (cell.crop === 'potato') color = '#228B22';
+                        else if (cell.crop === 'grape') color = '#008000';
+                        else if (cell.crop === 'kale') color = '#006400';
+                    } else {
+                        if (cell.crop === 'carrot') color = '#FFA500';
+                        else if (cell.crop === 'wheat') color = '#FFD700';
+                        else if (cell.crop === 'potato') color = '#8B4513';
+                        else if (cell.crop === 'grape') color = '#800080';
+                        else if (cell.crop === 'kale') color = '#800020';
+                    }
 
                     if (!isSeed) drawShadow(char);
-                    ctx.fillStyle = '#000';
+                    ctx.fillStyle = color;
                     ctx.fillText(char, centerX, centerY);
                 }
             }
