@@ -1392,10 +1392,10 @@ CELINA
 
                     let char = '';
                     let color = '#000';
-                    if (cell.obstacle === 'rock_large') { char = 'O'; color = '#808080'; }
-                    else if (cell.obstacle === 'rock_small') { char = 'o'; color = '#808080'; }
-                    else if (cell.obstacle === 'log') { char = 'I'; color = '#8B4513'; }
-                    else if (cell.obstacle === 'stick') { char = cell.stickChar; color = '#8B4513'; }
+                    if (cell.obstacle === 'rock_large') { char = 'O'; color = '#333333'; }
+                    else if (cell.obstacle === 'rock_small') { char = 'o'; color = '#333333'; }
+                    else if (cell.obstacle === 'log') { char = 'I'; color = '#3e2723'; }
+                    else if (cell.obstacle === 'stick') { char = cell.stickChar; color = '#3e2723'; }
 
                     let offsetY = 10;
                     if (char === '-') offsetY = 2;
@@ -1454,19 +1454,6 @@ CELINA
                             const cell = gridToDraw[r][c];
                             const center = this.getIsoCenter(c, r);
 
-                            if (this.location === 'forest' && (cell.isRiver || (this.forestFlooded && cell.isRiverBorder))) {
-                                ctx.font = '30px Courier New';
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'middle';
-                                ctx.fillStyle = '#555';
-                                const tick = Math.floor(Date.now() / 240);
-                                const offset = cell.riverIndex || 0;
-                                const state = ((tick - offset) % 4 + 4) % 4;
-                                const chars = ['~', '-', '-', '-'];
-                                const animChar = chars[state];
-                                ctx.fillText(animChar, center.x, center.y);
-                                continue;
-                            }
                             const p1 = { x: center.x, y: center.y - CONFIG.cellSize / 2 };
                             const p2 = { x: center.x + CONFIG.cellSize, y: center.y };
                             const p3 = { x: center.x, y: center.y + CONFIG.cellSize / 2 };
@@ -1483,10 +1470,29 @@ CELINA
                                 ctx.stroke();
                             };
 
+                            if (this.location === 'forest' && (cell.isRiver || (this.forestFlooded && cell.isRiverBorder))) {
+                                ctx.fillStyle = 'hsl(220, 80%, 20%)';
+                                ctx.strokeStyle = '#000';
+                                ctx.lineWidth = 1;
+                                drawTile();
+
+                                ctx.font = '30px Courier New';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillStyle = 'hsl(220, 80%, 40%)';
+                                const tick = Math.floor(Date.now() / 240);
+                                const offset = cell.riverIndex || 0;
+                                const state = ((tick - offset) % 4 + 4) % 4;
+                                const chars = ['~', '-', '-', '-'];
+                                const animChar = chars[state];
+                                ctx.fillText(animChar, center.x, center.y);
+                                continue;
+                            }
+
                             const isWet = cell.watered || this.isRaining;
 
                             if (cell.waterAnimation) {
-                                ctx.fillStyle = '#fff';
+                                ctx.fillStyle = '#e6ccb2';
                                 ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
                                 drawTile();
@@ -1507,7 +1513,7 @@ CELINA
                                 ctx.ellipse(cell.waterAnimation.clickX, cell.waterAnimation.clickY, cell.waterAnimation.radius, cell.waterAnimation.radius / 2, 0, 0, Math.PI * 2);
                                 ctx.clip();
 
-                                ctx.fillStyle = '#888';
+                                ctx.fillStyle = '#9c6f44';
                                 ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
                                 drawTile();
@@ -1524,7 +1530,7 @@ CELINA
                                     cell.waterAnimation = null;
                                 }
                             } else {
-                                ctx.fillStyle = isWet ? '#888' : '#fff';
+                                ctx.fillStyle = isWet ? '#9c6f44' : '#e6ccb2';
                                 ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
                                 drawTile();
