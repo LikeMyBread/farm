@@ -243,6 +243,13 @@ CELINA
         };
 
         class Game {
+            getSeasonDayString() {
+                const seasons = ['Spring', 'Summer', 'Fall', 'Winter'];
+                const seasonIdx = Math.floor((this.day - 1) / 28) % 4;
+                const seasonDay = ((this.day - 1) % 28) + 1;
+                return `${seasons[seasonIdx]} ${seasonDay}`;
+            }
+
             getIsoCenter(c, r) {
                 const w = CONFIG.cellSize * 2;
                 const h = CONFIG.cellSize;
@@ -304,7 +311,7 @@ CELINA
                 this.health = CONFIG.energyMax;
                 this.inventory = [
                     { id: 'look', name: 'Look', type: 'tool', count: 1 },
-                    { id: 'watering_can', name: 'Can', type: 'tool', count: 1 },
+                    { id: 'watering_can', name: 'Can', type: 'tool', count: 1, water: 20 },
                     { id: 'pickaxe', name: 'Pick', type: 'tool', count: 1 },
                     { id: 'axe', name: 'Axe', type: 'tool', count: 1 },
                     { id: 'carrot_seed', name: 'Carrot', type: 'seed', crop: 'carrot', count: 5 },
@@ -321,6 +328,9 @@ CELINA
                 this.forestFlooded = false;
                 this.messages = ["Welcome to ASCII Farm."];
                 this.isRaining = false;
+                this.isHotDay = false;
+                this.isColdDay = false;
+                this.consecutiveHotDays = 0;
                 this.flyingItems = [];
             }
 
@@ -340,6 +350,9 @@ CELINA
                             this.grid = data.grid;
                             this.forestGrid = data.forestGrid;
                             this.isRaining = data.isRaining;
+                            this.isHotDay = data.isHotDay !== undefined ? data.isHotDay : false;
+                            this.isColdDay = data.isColdDay !== undefined ? data.isColdDay : false;
+                            this.consecutiveHotDays = data.consecutiveHotDays !== undefined ? data.consecutiveHotDays : 0;
                             this.forestFlooded = data.forestFlooded;
                             this.messages = data.messages || ["Welcome back to ASCII Farm."];
                             this.selectedItemIndex = 1;
@@ -400,6 +413,9 @@ CELINA
                         grid: this.grid,
                         forestGrid: this.forestGrid,
                         isRaining: this.isRaining,
+                        isHotDay: this.isHotDay,
+                        isColdDay: this.isColdDay,
+                        consecutiveHotDays: this.consecutiveHotDays,
                         forestFlooded: this.forestFlooded,
                         messages: this.messages
                     };
@@ -564,7 +580,7 @@ CELINA
 
             updateUI() {
                 document.getElementById('location-name').innerText = this.location.toUpperCase();
-                document.getElementById('day-display').innerText = `DAY ${this.day}`;
+                document.getElementById('day-display').innerText = this.getSeasonDayString().toUpperCase();
 
                 const hours = Math.floor(this.time / 60);
                 const displayHours = hours % 24;
@@ -659,10 +675,21 @@ CELINA
 
                 invEl.innerHTML = this.inventory.map((item, index) => {
                     const hotkeyNum = (index % 8) + 1;
+                    let extraHtml = '';
+                    if (item.id === 'watering_can' || item.id === 'upgraded_watering_can') {
+                        const water = item.water !== undefined ? item.water : 20;
+                        const pct = (water / 20) * 100;
+                        extraHtml = `
+                            <div class="water-bar-container">
+                                <div class="water-bar-fill" style="width: ${pct}%"></div>
+                            </div>
+                        `;
+                    }
                     return `
                 <div class="inv-slot ${this.selectedItemIndex === index ? 'selected' : ''}" onclick="game.selectItem(${index})">
                     <div class="hotkey-hint">${hotkeyNum}</div>
                     <div>${item.name}</div>
+                    ${extraHtml}
                     ${item.type === 'seed' ? '<div>Seed</div>' : ''}
                     <div>${item.type === 'tool' ? '' : 'x' + item.count}</div>
                 </div>
@@ -804,7 +831,8 @@ CELINA
 
                         const canIndex = this.inventory.findIndex(i => i.id === 'watering_can');
                         if (canIndex >= 0) {
-                            this.inventory[canIndex] = { id: 'upgraded_watering_can', name: 'Can+', type: 'tool', count: 1 };
+                            const oldWater = this.inventory[canIndex].water !== undefined ? this.inventory[canIndex].water : 20;
+                            this.inventory[canIndex] = { id: 'upgraded_watering_can', name: 'Can+', type: 'tool', count: 1, water: oldWater };
                         }
 
                         this.activeDialogue.nodeId = 'upgrade_success';
@@ -962,8 +990,29 @@ CELINA
                         const cell = gridToUse[row][col];
 
                         if (this.location === 'forest' && (cell.isRiver || (this.forestFlooded && cell.isRiverBorder))) {
+                            if (activeItem && (activeItem.id === 'watering_can' || activeItem.id === 'upgraded_watering_can')) {
+                                if (this.consecutiveHotDays >= 2) {
+                                    this.log("The river has dried up from the drought! You cannot refill your can.", true);
+                                    return;
+                                }
+                                const currentWater = activeItem.water !== undefined ? activeItem.water : 20;
+                                if (currentWater >= 20) {
+                                    this.log("Your watering can is already full!", true);
+                                    return;
+                                }
+                                if (this.consumeEnergy(CONFIG.costWater)) {
+                                    activeItem.water = 20;
+                                    this.log("Refilled watering can!");
+                                    this.updateUI();
+                                }
+                                return;
+                            }
                             if (activeItem && activeItem.id === 'look') {
-                                this.log("The rushing river water.", true);
+                                if (this.consecutiveHotDays >= 2) {
+                                    this.log("The dried-up river bed.", true);
+                                } else {
+                                    this.log("The rushing river water.", true);
+                                }
                             }
                             return;
                         }
@@ -1077,17 +1126,29 @@ CELINA
 
                             const unwateredCells = cellsToWater.filter(c => !c.watered);
                             if (unwateredCells.length > 0) {
-                                if (this.consumeEnergy(CONFIG.costWater)) {
+                                const currentWater = activeItem.water !== undefined ? activeItem.water : 20;
+                                const waterNeeded = this.isHotDay ? 2 : 1;
+                                if (currentWater < waterNeeded) {
+                                    this.log(`Not enough water! Hot days require ${waterNeeded} waterings worth of water per action.`, true);
+                                    return;
+                                }
+                                const energyCost = CONFIG.costWater * (this.isHotDay ? 2 : 1);
+                                if (this.consumeEnergy(energyCost)) {
                                     unwateredCells.forEach(c => {
                                         c.watered = true;
                                         c.waterAnimation = { clickX: x, clickY: y, radius: 0 };
                                     });
+                                    activeItem.water = currentWater - waterNeeded;
                                     this.log(`Watered ${unwateredCells.length} square(s)`);
                                     this.updateUI();
                                 }
                             }
                         } else if (activeItem.type === 'seed' && activeItem.count > 0) {
                             if (!cell.crop) {
+                                if (this.isColdDay) {
+                                    this.log("The ground is too frozen to dig.", true);
+                                    return;
+                                }
                                 if (this.consumeEnergy(CONFIG.costPlant)) {
                                     cell.crop = activeItem.crop;
                                     cell.growthDays = 0;
@@ -1154,7 +1215,47 @@ CELINA
 
                 let events = [];
 
-                this.isRaining = Math.random() < 0.2;
+                this.isRaining = false;
+                this.isHotDay = false;
+                this.isColdDay = false;
+
+                const seasons = ['Spring', 'Summer', 'Fall', 'Winter'];
+                const seasonIdx = Math.floor((this.day - 1) / 28) % 4;
+                const season = seasons[seasonIdx];
+
+                const roll = Math.random();
+                if (season === 'Spring') {
+                    if (roll < 0.25) {
+                        this.isRaining = true;
+                    } else if (roll < 0.35) {
+                        this.isHotDay = true;
+                    } else if (roll < 0.50) {
+                        this.isColdDay = true;
+                    }
+                } else if (season === 'Summer') {
+                    if (roll < 0.35) {
+                        this.isRaining = true;
+                    } else if (roll < 0.75) {
+                        this.isHotDay = true;
+                    }
+                } else if (season === 'Fall') {
+                    if (roll < 0.15) {
+                        this.isRaining = true;
+                    } else if (roll < 0.20) {
+                        this.isHotDay = true;
+                    } else if (roll < 0.45) {
+                        this.isColdDay = true;
+                    }
+                } else if (season === 'Winter') {
+                    this.isColdDay = true;
+                }
+
+                if (this.isHotDay) {
+                    this.consecutiveHotDays = (this.consecutiveHotDays || 0) + 1;
+                } else {
+                    this.consecutiveHotDays = 0;
+                }
+
                 this.forestFlooded = false;
                 if (this.isRaining) {
                     events.push("It is raining today! No need to water.");
@@ -1162,6 +1263,14 @@ CELINA
                         this.forestFlooded = true;
                         events.push("The forest river flooded its banks!");
                     }
+                } else if (this.isHotDay) {
+                    if (this.consecutiveHotDays >= 2) {
+                        events.push(`A severe drought is ongoing! The river has dried up. The drought has been going for ${this.consecutiveHotDays} days.`);
+                    } else {
+                        events.push("It is a scorching hot day! Crops need double water and energy.");
+                    }
+                } else if (this.isColdDay) {
+                    events.push("It is freezing cold today! The ground is frozen solid.");
                 }
 
                 if (Math.random() < 0.05) {
@@ -1260,7 +1369,7 @@ CELINA
 
             showReport(events) {
                 reportEl.style.display = 'block';
-                let content = `<p>Day ${this.day} has begun.</p>`;
+                let content = `<p>${this.getSeasonDayString()} has begun.</p>`;
                 if (events.length > 0) {
                     content += "<ul>" + events.map(e => `<li>${e}</li>`).join('') + "</ul>";
                 } else {
@@ -1471,7 +1580,8 @@ CELINA
                             };
 
                             if (this.location === 'forest' && (cell.isRiver || (this.forestFlooded && cell.isRiverBorder))) {
-                                ctx.fillStyle = 'hsl(220, 80%, 20%)';
+                                const isDrought = this.consecutiveHotDays >= 2;
+                                ctx.fillStyle = isDrought ? '#8b5a2b' : 'hsl(220, 80%, 20%)';
                                 ctx.strokeStyle = '#000';
                                 ctx.lineWidth = 1;
                                 drawTile();
@@ -1479,11 +1589,11 @@ CELINA
                                 ctx.font = '30px Courier New';
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-                                ctx.fillStyle = 'hsl(220, 80%, 40%)';
+                                ctx.fillStyle = isDrought ? '#5c3a21' : 'hsl(220, 80%, 40%)';
                                 const tick = Math.floor(Date.now() / 240);
                                 const offset = cell.riverIndex || 0;
                                 const state = ((tick - offset) % 4 + 4) % 4;
-                                const chars = ['~', '-', '-', '-'];
+                                const chars = isDrought ? ['x', '_', '_', '_'] : ['~', '-', '-', '-'];
                                 const animChar = chars[state];
                                 ctx.fillText(animChar, center.x, center.y);
                                 continue;
@@ -1535,6 +1645,37 @@ CELINA
                                 ctx.lineWidth = 1;
                                 drawTile();
                                 this.drawCellContent(cell, center.x, center.y, isWet);
+                            }
+
+                            if (this.isHotDay) {
+                                ctx.fillStyle = 'rgba(255, 235, 59, 0.25)';
+                                ctx.beginPath();
+                                ctx.moveTo(p1.x, p1.y);
+                                ctx.lineTo(p2.x, p2.y);
+                                ctx.lineTo(p3.x, p3.y);
+                                ctx.lineTo(p4.x, p4.y);
+                                ctx.closePath();
+                                ctx.fill();
+                            }
+                            if (this.isColdDay) {
+                                ctx.strokeStyle = 'rgba(224, 255, 255, 0.6)';
+                                ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                ctx.moveTo(center.x, center.y); ctx.lineTo(p1.x, p1.y);
+                                ctx.moveTo(center.x, center.y); ctx.lineTo(p2.x, p2.y);
+                                ctx.moveTo(center.x, center.y); ctx.lineTo(p3.x, p3.y);
+                                ctx.moveTo(center.x, center.y); ctx.lineTo(p4.x, p4.y);
+                                ctx.stroke();
+
+                                for (let scale of [0.4, 0.7]) {
+                                    ctx.beginPath();
+                                    ctx.moveTo(center.x + (p1.x - center.x) * scale, center.y + (p1.y - center.y) * scale);
+                                    ctx.lineTo(center.x + (p2.x - center.x) * scale, center.y + (p2.y - center.y) * scale);
+                                    ctx.lineTo(center.x + (p3.x - center.x) * scale, center.y + (p3.y - center.y) * scale);
+                                    ctx.lineTo(center.x + (p4.x - center.x) * scale, center.y + (p4.y - center.y) * scale);
+                                    ctx.closePath();
+                                    ctx.stroke();
+                                }
                             }
                         }
                     }
